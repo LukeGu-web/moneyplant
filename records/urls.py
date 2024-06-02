@@ -1,4 +1,5 @@
 from django.urls import path
 from . import views
 
-urlpatterns = [path('test', views.index)]
+urlpatterns = [path('', views.getRecords), path(
+    'test', views.second), path('<id>', views.index)]
