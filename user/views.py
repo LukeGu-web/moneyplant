@@ -51,7 +51,6 @@ def device_register_view(request):
             account = serializer.save()
             data['response'] = 'Account has been created'
             data['userId'] = account.id
-            # data['userStatus'] = account.userStatus
         else:
             data = serializer.errors
         return Response(data)

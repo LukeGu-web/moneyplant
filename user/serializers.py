@@ -17,6 +17,15 @@ class DeviceRegisterSerializer(serializers.ModelSerializer):
             'password': {'write_only': True}
         }
 
+    def create(self, validated_data):
+        user = User(
+            username=validated_data['username'],
+            is_active=validated_data['is_active']
+        )
+        user.set_password(validated_data['password'])
+        user.save()
+        return user
+
 
 class UserRegisterSerializer(DeviceRegisterSerializer):
     password2 = serializers.CharField(
