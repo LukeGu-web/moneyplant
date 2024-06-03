@@ -1,24 +1,30 @@
 from django.contrib.auth.models import User
 from rest_framework import serializers
-# from .models import User
 
 
-# class UserSerializer(serializers.ModelSerializer):
-#     class Meta:
-#         model = User
-#         fields = ['id', 'device', 'email', 'phoneNumber']
+def required(value):
+    if value is None:
+        raise serializers.ValidationError('This field is required')
 
-class UserRegisterSerializer(serializers.ModelSerializer):
-    # userStatus = serializers.CharField(max_length=200)
-    password2 = serializers.CharField(
-        style={'input_type': 'password'}, write_only=True)
+
+class DeviceRegisterSerializer(serializers.ModelSerializer):
+    is_active = serializers.BooleanField(validators=[required])
 
     class Meta:
         model = User
-        fields = ['username', 'email', 'password', 'password2']
+        fields = ['username', 'password', 'is_active']
         extra_kwargs = {
             'password': {'write_only': True}
         }
+
+
+class UserRegisterSerializer(DeviceRegisterSerializer):
+    password2 = serializers.CharField(
+        style={'input_type': 'password'}, write_only=True)
+
+    class Meta(DeviceRegisterSerializer.Meta):
+        model = User
+        fields = DeviceRegisterSerializer.Meta.fields + ['password2']
 
     def save(self):
         password = self.validated_data['password']
@@ -33,6 +39,8 @@ class UserRegisterSerializer(serializers.ModelSerializer):
 
         account = User(
             email=self.validated_data['email'], username=self.validated_data['username'])
+
+        account = User(username=self.validated_data['username'])
         account.set_password(password)
         account.save()
 

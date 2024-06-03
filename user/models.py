@@ -1,11 +1,9 @@
 from django.db import models
+from django.contrib.auth.models import User as DefaultUser
 
 # Create your models here.
 
 
-class User(models.Model):
-    account = models.CharField(max_length=200)
-    password = models.CharField(max_length=200)
-    userStatus = models.CharField(max_length=200)
-    email = models.CharField(max_length=200)
-    phoneNumber = models.CharField(max_length=200)
+# class Account(models.Model):
+#     user = models.OneToOneField(DefaultUser, on_delete=models.CASCADE)
+#     accountStatus = models.CharField(max_length=200)
