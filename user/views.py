@@ -8,6 +8,7 @@ from rest_framework import status
 from rest_framework.authtoken.models import Token
 from .serializers import DeviceRegisterSerializer, UserRegisterSerializer
 # from rest_framework_simplejwt.tokens import RefreshToken
+import json
 
 
 class UserDetail(APIView):
@@ -43,17 +44,15 @@ class UserDetail(APIView):
 @api_view(http_method_names=["POST"])
 def device_register_view(request):
     if request.method == "POST":
+
         serializer = DeviceRegisterSerializer(data=request.data)
 
-        data = {}
-
-        if serializer.is_valid():
-            account = serializer.save()
-            data['response'] = 'Account has been created'
-            data['userId'] = account.id
+        if serializer.is_valid(raise_exception=ValueError):
+            account = serializer.create(validated_data=request.data)
+            data = account | {'message': 'Account has been created'}
+            return Response(data, status=status.HTTP_201_CREATED)
         else:
-            data = serializer.errors
-        return Response(data)
+            return Response(serializer.error_messages, status=status.HTTP_400_BAD_REQUEST)
 
 
 @api_view(["POST"])

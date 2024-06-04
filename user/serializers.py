@@ -1,5 +1,6 @@
 from django.contrib.auth.models import User
 from rest_framework import serializers
+from .models import Account
 
 
 def required(value):
@@ -7,24 +8,33 @@ def required(value):
         raise serializers.ValidationError('This field is required')
 
 
-class DeviceRegisterSerializer(serializers.ModelSerializer):
-    is_active = serializers.BooleanField(validators=[required])
-
+class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['username', 'password', 'is_active']
+        fields = ['id', 'username', 'password']
+
+
+class DeviceRegisterSerializer(serializers.ModelSerializer):
+    user = UserSerializer(required=True)
+
+    class Meta:
+        model = Account
+        fields = ['id', 'user', 'accountStatus']
         extra_kwargs = {
             'password': {'write_only': True}
         }
 
     def create(self, validated_data):
-        user = User(
-            username=validated_data['username'],
-            is_active=validated_data['is_active']
+        user_data = validated_data['user']
+        new_user = UserSerializer.create(
+            UserSerializer(), validated_data=user_data)
+        # new_user.set_password(validated_data['password'])
+        account, created = Account.objects.update_or_create(
+            user=new_user,
+            accountStatus=validated_data['accountStatus']
         )
-        user.set_password(validated_data['password'])
-        user.save()
-        return user
+        result = {"id": account.id, 'accountStatus': account.accountStatus}
+        return result
 
 
 class UserRegisterSerializer(DeviceRegisterSerializer):
@@ -32,7 +42,7 @@ class UserRegisterSerializer(DeviceRegisterSerializer):
         style={'input_type': 'password'}, write_only=True)
 
     class Meta(DeviceRegisterSerializer.Meta):
-        model = User
+        model = Account
         fields = DeviceRegisterSerializer.Meta.fields + ['password2']
 
     def save(self):

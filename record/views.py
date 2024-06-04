@@ -2,19 +2,25 @@ from django.http import Http404
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
+from rest_framework.permissions import IsAuthenticated
 from .models import Record
 from .serializers import RecordSerializer
+from .permissions import IsAdminOrReadOnly, IsOwnerOrReadonly, IsOwner
 
 
 class RecordList(APIView):
     """
     List all Records, or create a new Record.
     """
+    permission_classes = [IsOwner]
 
     def get(self, request, format=None):
-        Records = Record.objects.all()
-        serializer = RecordSerializer(Records, many=True)
-        return Response(serializer.data)
+        records = Record.objects.all()
+        serializer = RecordSerializer(records, many=True)
+        if records.exists():
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        else:
+            return Response({'Message': 'No record found'}, status=status.HTTP_404_NOT_FOUND)
 
     def post(self, request, format=None):
         serializer = RecordSerializer(data=request.data)
@@ -28,6 +34,7 @@ class RecordDetail(APIView):
     """
     Retrieve, update or delete a Record instance.
     """
+    permission_classes = [IsOwnerOrReadonly]
 
     def get_object(self, pk):
         try:
