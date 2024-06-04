@@ -3,6 +3,8 @@ from .models import Record
 
 
 class RecordSerializer(serializers.ModelSerializer):
+    author = serializers.StringRelatedField(read_only=True)
+
     class Meta:
         model = Record
-        fields = ['id', 'category', 'subcategory', 'note', 'amount']
+        fields = "__all__"
