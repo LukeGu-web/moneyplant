@@ -3,15 +3,26 @@ from rest_framework import serializers
 from .models import Account
 
 
-def required(value):
-    if value is None:
-        raise serializers.ValidationError('This field is required')
+# def required(value):
+#     if value is None:
+#         raise serializers.ValidationError('This field is required')
 
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ['id', 'username', 'password']
+        extra_kwargs = {
+            'password': {'write_only': True}
+        }
+
+    def create(self, validated_data):
+        user = User(
+            username=validated_data['username']
+        )
+        user.set_password(validated_data['password'])
+        user.save()
+        return user
 
 
 class DeviceRegisterSerializer(serializers.ModelSerializer):
@@ -20,15 +31,11 @@ class DeviceRegisterSerializer(serializers.ModelSerializer):
     class Meta:
         model = Account
         fields = ['id', 'user', 'accountStatus']
-        extra_kwargs = {
-            'password': {'write_only': True}
-        }
 
     def create(self, validated_data):
         user_data = validated_data['user']
         new_user = UserSerializer.create(
             UserSerializer(), validated_data=user_data)
-        # new_user.set_password(validated_data['password'])
         account, created = Account.objects.update_or_create(
             user=new_user,
             accountStatus=validated_data['accountStatus']
