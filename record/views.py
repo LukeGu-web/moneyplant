@@ -6,7 +6,7 @@ from rest_framework.permissions import IsAuthenticated
 # from rest_framework.authtoken.models import Token
 from .models import Record
 from .serializers import RecordSerializer
-from .permissions import IsOwnerOrReadonly
+from .permissions import IsOwnerOrReadonly, IsOwner
 
 
 class RecordList(APIView):
@@ -35,7 +35,7 @@ class RecordDetail(APIView):
     """
     Retrieve, update or delete a Record instance.
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsOwner]
 
     def get_object(self, pk):
         try:
@@ -52,14 +52,20 @@ class RecordDetail(APIView):
             return Response({'error': 'No record found'}, status=status.HTTP_404_NOT_FOUND)
 
     def put(self, request, pk, format=None):
-        Record = self.get_object(pk)
-        serializer = RecordSerializer(Record, data=request.data)
+        record = self.get_object(pk)
+        if record.author != request.user:
+            return Response({'error': 'Wrong credential'}, status=status.HTTP_401_UNAUTHORIZED)
+
+        serializer = RecordSerializer(record, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def delete(self, request, pk, format=None):
-        Record = self.get_object(pk)
-        Record.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
+        record = self.get_object(pk)
+        if record.author != request.user:
+            return Response({'error': 'Wrong credential'}, status=status.HTTP_401_UNAUTHORIZED)
+        else:
+            record.delete()
+            return Response({'message': 'Delete successfully'}, status=status.HTTP_204_NO_CONTENT)
