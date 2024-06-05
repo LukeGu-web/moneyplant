@@ -17,5 +17,5 @@ class IsOwnerOrReadonly(permissions.BasePermission):
 
 
 class IsOwner(permissions.BasePermission):
-    def has_object_permission(self, request, view):
-        return request.user == User.objects.get(pk=view.kwargs['id'])
+    def has_object_permission(self, request, view, obj):
+        return obj.author == request.user

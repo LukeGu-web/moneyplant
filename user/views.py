@@ -54,4 +54,4 @@ class AccountDetail(APIView):
 def logout_user(request):
     if request.method == "POST":
         request.user.auth_token.delete()
-        return Response({"Message": "You are logged out"}, status=status.HTTP_200_OK)
+        return Response({"message": "You are logged out"}, status=status.HTTP_200_OK)
