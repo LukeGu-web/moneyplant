@@ -1,3 +1,4 @@
+from django.http import Http404
 from rest_framework.decorators import api_view
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -5,6 +6,7 @@ from rest_framework import status
 
 from .serializers import AccountSerializer
 from .models import Account
+from .permissions import IsOwnerOrReadonly, IsOwner
 # from rest_framework_simplejwt.tokens import RefreshToken
 
 
@@ -26,15 +28,25 @@ class AccountDetail(APIView):
     """
     Retrieve, update or delete a User instance.
     """
+    permission_classes = [IsOwner]
+
+    def get_object(self, pk):
+        try:
+            return Account.objects.get(pk=pk)
+        except Account.DoesNotExist:
+            raise Http404
 
     def get(self, request, pk):
-        account = Account.objects.get(pk=pk)
+        account = self.get_object(pk)
         serializer = AccountSerializer(account)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 # update account details (user register)
     def put(self, request, pk, format=None):
-        account = Account.objects.get(pk=pk)
+        account = self.get_object(pk)
+        if account.user != request.user:
+            return Response({'error': 'Wrong credential'}, status=status.HTTP_401_UNAUTHORIZED)
+
         serializer = AccountSerializer(
             account, data=request.data, partial=True)
         if serializer.is_valid():
@@ -45,9 +57,12 @@ class AccountDetail(APIView):
         return Response(serializer.error_messages, status=status.HTTP_400_BAD_REQUEST)
 
     def delete(self, request, pk, format=None):
-        account = Account.objects.get(pk=pk)
-        account.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
+        account = self.get_object(pk)
+        if account.user != request.user:
+            return Response({'error': 'Wrong credential'}, status=status.HTTP_401_UNAUTHORIZED)
+        else:
+            account.delete()
+            return Response({'message': 'Delete successfully'}, status=status.HTTP_204_NO_CONTENT)
 
 
 @api_view(["POST"])
