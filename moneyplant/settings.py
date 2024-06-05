@@ -30,7 +30,7 @@ SECRET_KEY = 'django-insecure-6k1_g3yl+9@*lk%&z18dt+ua(-4mvv+=wh26(&8iha8%lg^*kq
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ["https://moneyplant.onrender.com"]
+ALLOWED_HOSTS = ["moneyplant.onrender.com"]
 
 
 # Application definition
