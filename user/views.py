@@ -1,4 +1,5 @@
 from django.http import Http404
+from rest_framework.authtoken.models import Token
 from rest_framework.decorators import api_view
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -22,6 +23,18 @@ def device_register_view(request):
             return Response(data, status=status.HTTP_201_CREATED)
         else:
             return Response(serializer.error_messages, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(http_method_names=["GET"])
+def user_details_view(request):
+    if request.method == "GET":
+        try:
+            user = Token.objects.get(key=request.auth.key).user
+            account = Account.objects.get(user=user)
+            serializer = AccountSerializer(account)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except Token.DoesNotExist:
+            raise Http404
 
 
 class AccountDetail(APIView):
