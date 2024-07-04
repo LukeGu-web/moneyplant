@@ -78,10 +78,12 @@ class RecordDetail(APIView):
 @api_view(http_method_names=["GET"])
 def records_date_range_view(request):
     if request.method == "GET":
-        start_date = request.data.get('start_date')
-        end_date = request.data.get('end_date')
-        group_by_date = request.data.get('group_by_date', False)
-        is_decreasing = request.data.get('is_decreasing', False)
+        start_date = request.query_params.get('start_date')
+        end_date = request.query_params.get('end_date')
+        group_by_date = request.query_params.get('group_by_date', 'false').lower() in [
+            'true', 'yes', 't']
+        is_decreasing = request.query_params.get('is_decreasing', 'false').lower() in [
+            'true', 'yes', 't']
         if not start_date or not end_date:
             return Response({'error': 'Both start_date and end_date are required.'}, status=status.HTTP_400_BAD_REQUEST)
 
