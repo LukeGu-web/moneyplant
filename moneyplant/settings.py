@@ -14,12 +14,18 @@ from pathlib import Path
 # import dj_database_url
 from dotenv import load_dotenv
 import os
+import mimetypes
 
 load_dotenv()
 
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
-BASE_DIR = Path(__file__).resolve().parent.parent
+mimetypes.add_type("text/css", ".css", True)
 
+# Build paths inside the project like this: BASE_DIR / 'subdir'.
+# BASE_DIR = Path(__file__).resolve().parent.parent
+
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+STATIC_URL = '/static/'
+STATIC_ROOT = os.path.join(BASE_DIR, 'static')
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.0/howto/deployment/checklist/
@@ -28,12 +34,9 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-6k1_g3yl+9@*lk%&z18dt+ua(-4mvv+=wh26(&8iha8%lg^*kq'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
-STATIC_ROOT = BASE_DIR / 'static/'  # Here
-STATIC_URL = 'static/'
-
-ALLOWED_HOSTS = ["moneyplant.onrender.com", "127.0.0.1"]
+ALLOWED_HOSTS = ["moneyplant.onrender.com", "127.0.0.1", "192.168.31.221"]
 
 
 # Application definition
@@ -47,6 +50,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'rest_framework',
     'rest_framework.authtoken',
+    'gunicorn',
     'record',
     'user'
 ]
@@ -149,7 +153,8 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.0/howto/static-files/
 
-STATIC_URL = 'static/'
+# STATIC_URL = 'static/'
+# STATIC_ROOT = os.path.join(BASE_DIR, 'static/')
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.0/ref/settings/#default-auto-field
