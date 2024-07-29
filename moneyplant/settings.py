@@ -34,7 +34,7 @@ STATIC_ROOT = os.path.join(BASE_DIR, 'static')
 SECRET_KEY = 'django-insecure-6k1_g3yl+9@*lk%&z18dt+ua(-4mvv+=wh26(&8iha8%lg^*kq'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
+DEBUG = True
 
 ALLOWED_HOSTS = ["moneyplant.onrender.com", "127.0.0.1", "192.168.31.221"]
 
@@ -99,12 +99,23 @@ WSGI_APPLICATION = 'moneyplant.wsgi.application'
 #     }
 # }
 
-# render db
+# neon db
 # DATABASES = {
-#     "default": dj_database_url.config(default=os.environ.get("DATABASE_URL"))
+#     'default': {
+#         'ENGINE': 'django.db.backends.postgresql',
+#         'NAME': os.environ.get('PGDATABASE'),
+#         'USER': os.environ.get('PGUSER'),
+#         'PASSWORD': os.environ.get('PGPASSWORD'),
+#         'HOST': os.environ.get('PGHOST'),
+#         'PORT': os.environ.get('PGPORT', 5432),
+#         'OPTIONS': {
+#             'sslmode': 'require',
+#         },
+#         'DISABLE_SERVER_SIDE_CURSORS': True,
+#     }
 # }
 
-# neon db
+# mac local postgreSQL db
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
@@ -113,13 +124,8 @@ DATABASES = {
         'PASSWORD': os.environ.get('PGPASSWORD'),
         'HOST': os.environ.get('PGHOST'),
         'PORT': os.environ.get('PGPORT', 5432),
-        'OPTIONS': {
-            'sslmode': 'require',
-        },
-        'DISABLE_SERVER_SIDE_CURSORS': True,
     }
 }
-
 
 # Password validation
 # https://docs.djangoproject.com/en/5.0/ref/settings/#auth-password-validators
