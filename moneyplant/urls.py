@@ -25,6 +25,7 @@ from . import views
 urlpatterns = [
     path('', views.redirect_view),
     path('admin/', admin.site.urls),
+    path('book/', include('book.urls')),
     path('record/', include('record.urls')),
     path('user/', include('user.urls')),
     re_path(r'^static/(?P<path>.*)$', serve,
