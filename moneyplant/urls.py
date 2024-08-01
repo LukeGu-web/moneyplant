@@ -25,6 +25,7 @@ from . import views
 urlpatterns = [
     path('', views.redirect_view),
     path('admin/', admin.site.urls),
+    path('asset/', include('asset.urls')),
     path('book/', include('book.urls')),
     path('record/', include('record.urls')),
     path('user/', include('user.urls')),
