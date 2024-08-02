@@ -11,8 +11,10 @@ def bill_day_valid(value):
 
 class AssetSerializer(serializers.ModelSerializer):
     id = serializers.IntegerField(read_only=True)
-    bill_day = serializers.IntegerField(validators=[bill_day_valid])
-    repayment_day = serializers.IntegerField(validators=[bill_day_valid])
+    bill_day = serializers.IntegerField(
+        required=False, allow_null=True, validators=[bill_day_valid])
+    repayment_day = serializers.IntegerField(
+        required=False, allow_null=True, validators=[bill_day_valid])
 
     class Meta:
         model = Asset
