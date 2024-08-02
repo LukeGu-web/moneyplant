@@ -4,7 +4,8 @@ from book.models import Book
 
 class AssetGroup(models.Model):
     name = models.CharField(max_length=100)
-    # book = models.ForeignKey(Book, on_delete=models.CASCADE)
+    book = models.ForeignKey(
+        Book, on_delete=models.SET_NULL, null=True, related_name='book')
 
     def __str__(self):
         return self.name
