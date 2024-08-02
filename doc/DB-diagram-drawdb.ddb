@@ -1,7 +1,7 @@
 {
   "author": "Unnamed",
   "title": "Moneyplant Diagram",
-  "date": "2024-07-27T11:51:41.318Z",
+  "date": "2024-08-02T11:44:01.095Z",
   "tables": [
     {
       "id": 0,
@@ -279,8 +279,8 @@
     {
       "id": 3,
       "name": "Asset",
-      "x": 28.436202982814336,
-      "y": -45.730373214734584,
+      "x": 39.73686216250195,
+      "y": 68.16754984609133,
       "fields": [
         {
           "name": "id",
@@ -295,31 +295,17 @@
           "id": 0
         },
         {
-          "name": "book_id",
+          "name": "group_id",
           "type": "INTEGER",
           "default": "",
           "check": "",
           "primary": false,
           "unique": false,
-          "notNull": true,
+          "notNull": false,
           "increment": false,
           "comment": "",
           "id": 1,
           "size": "",
-          "values": []
-        },
-        {
-          "name": "group_name",
-          "type": "VARCHAR",
-          "default": "",
-          "check": "",
-          "primary": false,
-          "unique": false,
-          "notNull": true,
-          "increment": false,
-          "comment": "",
-          "id": 2,
-          "size": 255,
           "values": []
         },
         {
@@ -332,7 +318,7 @@
           "notNull": false,
           "increment": false,
           "comment": "",
-          "id": 3
+          "id": 2
         },
         {
           "name": "isCredit",
@@ -344,7 +330,7 @@
           "notNull": false,
           "increment": false,
           "comment": "",
-          "id": 4,
+          "id": 3,
           "size": "",
           "values": []
         },
@@ -358,7 +344,7 @@
           "notNull": false,
           "increment": false,
           "comment": "",
-          "id": 5
+          "id": 4
         },
         {
           "name": "billDay",
@@ -370,7 +356,7 @@
           "notNull": false,
           "increment": false,
           "comment": "",
-          "id": 6,
+          "id": 5,
           "size": "",
           "values": []
         },
@@ -384,7 +370,7 @@
           "notNull": false,
           "increment": false,
           "comment": "",
-          "id": 7,
+          "id": 6,
           "size": "",
           "values": []
         },
@@ -398,7 +384,7 @@
           "notNull": false,
           "increment": false,
           "comment": "",
-          "id": 8,
+          "id": 7,
           "size": "",
           "values": []
         },
@@ -412,7 +398,7 @@
           "notNull": false,
           "increment": false,
           "comment": "",
-          "id": 9,
+          "id": 8,
           "size": "",
           "values": []
         },
@@ -426,7 +412,7 @@
           "notNull": false,
           "increment": false,
           "comment": "",
-          "id": 10,
+          "id": 9,
           "size": 65535,
           "values": []
         }
@@ -572,6 +558,57 @@
       "indices": [],
       "color": "#ff4f81",
       "key": 1722057173195
+    },
+    {
+      "id": 5,
+      "name": "AssetGroup",
+      "x": -319.62815204459633,
+      "y": 105.05498570109123,
+      "fields": [
+        {
+          "name": "id",
+          "type": "INTEGER",
+          "default": "",
+          "check": "",
+          "primary": true,
+          "unique": true,
+          "notNull": true,
+          "increment": true,
+          "comment": "",
+          "id": 0
+        },
+        {
+          "name": "book_id",
+          "type": "INTEGER",
+          "default": "",
+          "check": "",
+          "primary": false,
+          "unique": false,
+          "notNull": false,
+          "increment": false,
+          "comment": "",
+          "id": 1,
+          "size": "",
+          "values": []
+        },
+        {
+          "name": "name",
+          "type": "VARCHAR",
+          "default": "",
+          "check": "",
+          "primary": false,
+          "unique": false,
+          "notNull": false,
+          "increment": false,
+          "comment": "",
+          "id": 2,
+          "size": 255
+        }
+      ],
+      "comment": "",
+      "indices": [],
+      "color": "#3cde7d",
+      "key": 1722561286522
     }
   ],
   "relationships": [
@@ -587,17 +624,6 @@
       "id": 0
     },
     {
-      "startTableId": 3,
-      "startFieldId": 1,
-      "endTableId": 1,
-      "endFieldId": 0,
-      "cardinality": "Many to one",
-      "updateConstraint": "No action",
-      "deleteConstraint": "No action",
-      "name": "Asset_book_id_fk",
-      "id": 1
-    },
-    {
       "startTableId": 2,
       "startFieldId": 1,
       "endTableId": 1,
@@ -606,7 +632,7 @@
       "updateConstraint": "No action",
       "deleteConstraint": "No action",
       "name": "Record_book_id_fk",
-      "id": 2
+      "id": 1
     },
     {
       "startTableId": 2,
@@ -617,7 +643,7 @@
       "updateConstraint": "No action",
       "deleteConstraint": "No action",
       "name": "Record_asset_id_fk",
-      "id": 3
+      "id": 2
     },
     {
       "startTableId": 4,
@@ -628,7 +654,7 @@
       "updateConstraint": "No action",
       "deleteConstraint": "No action",
       "name": "Transfer_book_id_fk",
-      "id": 4
+      "id": 3
     },
     {
       "startTableId": 4,
@@ -639,7 +665,7 @@
       "updateConstraint": "No action",
       "deleteConstraint": "No action",
       "name": "Transfer_from_asset_id_fk",
-      "id": 5
+      "id": 4
     },
     {
       "startTableId": 4,
@@ -650,7 +676,29 @@
       "updateConstraint": "No action",
       "deleteConstraint": "No action",
       "name": "Transfer_to_asset_id_fk",
+      "id": 5
+    },
+    {
+      "startTableId": 3,
+      "startFieldId": 1,
+      "endTableId": 5,
+      "endFieldId": 0,
+      "cardinality": "One to one",
+      "updateConstraint": "No action",
+      "deleteConstraint": "No action",
+      "name": "Asset_group_id_fk",
       "id": 6
+    },
+    {
+      "startTableId": 5,
+      "startFieldId": 1,
+      "endTableId": 1,
+      "endFieldId": 0,
+      "cardinality": "Many to one",
+      "updateConstraint": "No action",
+      "deleteConstraint": "No action",
+      "name": "AssetGroup_book_id_fk",
+      "id": 7
     }
   ],
   "notes": [],
