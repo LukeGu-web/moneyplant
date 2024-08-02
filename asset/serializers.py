@@ -15,6 +15,7 @@ class AssetSerializer(serializers.ModelSerializer):
         required=False, allow_null=True, validators=[bill_day_valid])
     repayment_day = serializers.IntegerField(
         required=False, allow_null=True, validators=[bill_day_valid])
+    group = serializers.CharField()
 
     class Meta:
         model = Asset
@@ -24,8 +25,8 @@ class AssetSerializer(serializers.ModelSerializer):
 class AssetGroupSerializer(serializers.ModelSerializer):
     id = serializers.IntegerField(read_only=True)
     name = serializers.CharField()
-    group = AssetSerializer(many=True, read_only=True)
+    assets = AssetSerializer(many=True, read_only=True)
 
     class Meta:
         model = AssetGroup
-        fields = "__all__"
+        exclude = ['book']
