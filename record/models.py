@@ -19,6 +19,7 @@ class Record(models.Model):
     )
     category = models.CharField(max_length=200)
     subcategory = models.CharField(max_length=200, blank=True, default='')
+    is_marked_tax_return = models.BooleanField(blank=True, default=False)
     note = models.CharField(max_length=500, blank=True, default='')
     amount = models.DecimalField(max_digits=12, decimal_places=2)
     date = models.DateTimeField(default=timezone.now)

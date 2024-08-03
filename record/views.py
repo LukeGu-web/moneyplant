@@ -72,7 +72,7 @@ def records_and_transfers_view(request, *args, **kwargs):
 @api_view(http_method_names=["GET"])
 def records_date_range_view(request):
     if request.method == "GET":
-        # book_id = request.query_params.get('book_id')
+        book_id = request.query_params.get('book_id')
         start_date = request.query_params.get('start_date')
         end_date = request.query_params.get('end_date')
         group_by_date = request.query_params.get('group_by_date', 'false').lower() in [
@@ -89,12 +89,16 @@ def records_date_range_view(request):
             return Response({'error': 'Invalid date format. Use YYYY-MM-DD.'}, status=status.HTTP_400_BAD_REQUEST)
 
         records = Record.objects.filter(
-            author=request.user, date__range=[start_date, end_date]).order_by(f'{"-" if is_decreasing else ""}date')
-        serializer = RecordSerializer(records, many=True)
-        if records.exists():
-            if group_by_date:
-                group_data = group_records_by_date(serializer.data)
-                return Response(group_data, status=status.HTTP_200_OK)
-            return Response(serializer.data, status=status.HTTP_200_OK)
-        else:
-            return Response({'error': 'No record found'}, status=status.HTTP_404_NOT_FOUND)
+            book__id=book_id, date__range=[start_date, end_date]).order_by(f'{"-" if is_decreasing else ""}date')
+        transfers = Transfer.objects.filter(
+            book__id=book_id, date__range=[start_date, end_date]).order_by(f'{"-" if is_decreasing else ""}date')
+        record_serializer = RecordSerializer(
+            records, many=True, context={'request': request})
+        transfer_serializer = TransferSerializer(
+            transfers, many=True, context={'request': request})
+        all_records_data = record_serializer.data + transfer_serializer.data
+
+        if group_by_date:
+            group_data = group_records_by_date(all_records_data)
+            return Response(group_data, status=status.HTTP_200_OK)
+        return Response(all_records_data, status=status.HTTP_200_OK)
