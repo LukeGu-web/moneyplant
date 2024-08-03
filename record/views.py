@@ -53,9 +53,26 @@ class TransferDetail(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = TransferSerializer
 
 
+@api_view(['GET'])
+def records_and_transfers_view(request, *args, **kwargs):
+    if request.method == 'GET':
+        book_id = request.query_params.get('book_id')
+        # get the querysets
+        records = Record.objects.filter(book__id=book_id)
+        transfers = Transfer.objects.filter(book__id=book_id)
+        # serializer the data
+        record_serializer = RecordSerializer(
+            records, many=True, context={'request': request})
+        transfer_serializer = TransferSerializer(
+            transfers, many=True, context={'request': request})
+        data = record_serializer.data + transfer_serializer.data
+        return Response(data)
+
+
 @api_view(http_method_names=["GET"])
 def records_date_range_view(request):
     if request.method == "GET":
+        # book_id = request.query_params.get('book_id')
         start_date = request.query_params.get('start_date')
         end_date = request.query_params.get('end_date')
         group_by_date = request.query_params.get('group_by_date', 'false').lower() in [
