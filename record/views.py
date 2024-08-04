@@ -1,15 +1,11 @@
-from django.http import Http404
-from django.utils import timezone
 from datetime import datetime
+from django.utils.timezone import make_aware
 from rest_framework.decorators import api_view
-from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status, generics
 from rest_framework.permissions import IsAuthenticated
-# from rest_framework.authtoken.models import Token
 from .models import Record, Transfer
 from .serializers import RecordSerializer, TransferSerializer
-from .permissions import IsOwnerOrReadonly, IsOwner
 from .utils import group_records_by_date
 
 
@@ -83,20 +79,22 @@ def records_date_range_view(request):
             return Response({'error': 'Both start_date and end_date are required.'}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
-            start_date = datetime.strptime(start_date, "%Y-%m-%d").date()
-            end_date = datetime.strptime(end_date, "%Y-%m-%d").date()
+            start_date = make_aware(datetime.strptime(start_date, "%Y-%m-%d"))
+            end_date = make_aware(datetime.strptime(end_date, "%Y-%m-%d"))
         except ValueError:
             return Response({'error': 'Invalid date format. Use YYYY-MM-DD.'}, status=status.HTTP_400_BAD_REQUEST)
 
         records = Record.objects.filter(
-            book__id=book_id, date__range=[start_date, end_date]).order_by(f'{"-" if is_decreasing else ""}date')
+            book__id=book_id, date__range=[start_date, end_date])
         transfers = Transfer.objects.filter(
-            book__id=book_id, date__range=[start_date, end_date]).order_by(f'{"-" if is_decreasing else ""}date')
+            book__id=book_id, date__range=[start_date, end_date])
         record_serializer = RecordSerializer(
             records, many=True, context={'request': request})
         transfer_serializer = TransferSerializer(
             transfers, many=True, context={'request': request})
         all_records_data = record_serializer.data + transfer_serializer.data
+        # sort by date
+        all_records_data.sort(key=lambda r: r['date'], reverse=is_decreasing)
 
         if group_by_date:
             group_data = group_records_by_date(all_records_data)

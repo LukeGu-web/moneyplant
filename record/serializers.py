@@ -9,7 +9,7 @@ class RecordSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Record
-        fields = "__all__"
+        exclude = ['created_at', 'updated_at']
 
 
 class TransferSerializer(serializers.ModelSerializer):
@@ -20,4 +20,4 @@ class TransferSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Transfer
-        fields = "__all__"
+        exclude = ['created_at', 'updated_at']
