@@ -1,4 +1,5 @@
 from django.http import Http404
+from django.core.mail import BadHeaderError
 from rest_framework.authtoken.models import Token
 from rest_framework.decorators import api_view
 from rest_framework.views import APIView
@@ -8,7 +9,22 @@ from rest_framework import status
 from .serializers import AccountSerializer
 from .models import Account
 from .permissions import IsOwnerOrReadonly, IsOwner
+from .utils import Util
 # from rest_framework_simplejwt.tokens import RefreshToken
+
+
+@api_view(http_method_names=["POST"])
+def send_email_view(request):
+    if request.method == "POST":
+        try:
+            Util.send_email({
+                "email_subject": 'No attachment',
+                "email_body": 'Hello world',
+                "to_email": 'mythnan@gmail.com',
+            })
+        except BadHeaderError:
+            return Response({"error": "Invalid header found."}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({"details": "Send successfully."}, status=status.HTTP_200_OK)
 
 
 @api_view(http_method_names=["POST"])
