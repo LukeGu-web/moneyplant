@@ -6,7 +6,6 @@ from rest_framework.permissions import IsAuthenticated
 from book.models import Book
 from .models import Asset, AssetGroup
 from .serializers import AssetSerializer, AssetGroupSerializer
-# from .permissions import IsOwnerOrReadonly, IsOwner
 
 
 class AssetGroupList(generics.ListCreateAPIView):

@@ -5,7 +5,6 @@ from rest_framework import status, generics
 from rest_framework.permissions import IsAuthenticated
 from .models import Book
 from .serializers import BookSerializer
-# from .permissions import IsOwnerOrReadonly, IsOwner
 
 
 class BookList(generics.ListCreateAPIView):
