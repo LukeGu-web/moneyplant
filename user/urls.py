@@ -14,6 +14,7 @@ urlpatterns = [
     path("login/", obtain_auth_token, name="login"),
     path("logout/", views.logout_user, name="logout"),
     path("device-register/", views.device_register_view, name="device-register"),
+    path("tax-return/", views.tax_return_view),
     path("send-email/", views.send_email_view),
     path("fill-pdf/", views.fill_pdf_view),
 ]
