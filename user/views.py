@@ -28,6 +28,16 @@ def send_email_view(request):
 
 
 @api_view(http_method_names=["POST"])
+def fill_pdf_view(request):
+    if request.method == "POST":
+        try:
+            Util.fill_pdf()
+        except BadHeaderError:
+            return Response({"error": "Invalid file."}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({"details": "Send successfully."}, status=status.HTTP_200_OK)
+
+
+@api_view(http_method_names=["POST"])
 def device_register_view(request):
     if request.method == "POST":
 

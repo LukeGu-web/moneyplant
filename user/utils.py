@@ -1,5 +1,6 @@
 from django.core.mail import EmailMessage
 import threading
+from fillpdf import fillpdfs
 
 
 class EmailThread(threading.Thread):
@@ -20,3 +21,14 @@ class Util:
         if 'email_attachment' in data:
             email.attach_file(data['email_attachment'])
         EmailThread(email).start()
+
+    @staticmethod
+    def fill_pdf():
+        data = {
+            'name': 'Luke',
+            'income': '1000',
+            'expense': '20',
+            'tax': '2'
+        }
+        fillpdfs.write_fillable_pdf(
+            'doc/test_file.pdf', 'doc/new.pdf', data)
