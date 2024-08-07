@@ -4,13 +4,22 @@ from rest_framework.authtoken.models import Token
 from rest_framework.decorators import api_view
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework import status
+from rest_framework import status, generics
 
 from .serializers import AccountSerializer
 from .models import Account
 from .permissions import IsOwnerOrReadonly, IsOwner
 from .utils import Util
 # from rest_framework_simplejwt.tokens import RefreshToken
+
+
+class AccountDetail(generics.RetrieveUpdateDestroyAPIView):
+    """
+    Retrieve, update or delete a Account instance.
+    """
+    queryset = Account.objects.all()
+    serializer_class = AccountSerializer
+    permission_classes = [IsOwner]
 
 
 @api_view(http_method_names=["POST"])
@@ -27,9 +36,6 @@ def tax_return_view(request):
             return Response({"error": "Invalid header found."}, status=status.HTTP_400_BAD_REQUEST)
         return Response({"details": "Send successfully."}, status=status.HTTP_200_OK)
 
-
-@api_view(http_method_names=["POST"])
-def send_email_view(request):
     if request.method == "POST":
         try:
             Util.send_email({
@@ -76,47 +82,6 @@ def user_details_view(request):
             return Response(serializer.data, status=status.HTTP_200_OK)
         except Token.DoesNotExist:
             raise Http404
-
-
-class AccountDetail(APIView):
-    """
-    Retrieve, update or delete a User instance.
-    """
-    permission_classes = [IsOwner]
-
-    def get_object(self, pk):
-        try:
-            return Account.objects.get(pk=pk)
-        except Account.DoesNotExist:
-            raise Http404
-
-    def get(self, request, pk):
-        account = self.get_object(pk)
-        serializer = AccountSerializer(account)
-        return Response(serializer.data, status=status.HTTP_200_OK)
-
-# update account details (user register)
-    def put(self, request, pk, format=None):
-        account = self.get_object(pk)
-        if account.user != request.user:
-            return Response({'error': 'Wrong credential'}, status=status.HTTP_401_UNAUTHORIZED)
-
-        serializer = AccountSerializer(
-            account, data=request.data, partial=True)
-        if serializer.is_valid():
-            serializer.save()
-            result = {'message': 'Account details has been updated',
-                      'id': account.id}
-            return Response(result, status=status.HTTP_200_OK)
-        return Response(serializer.error_messages, status=status.HTTP_400_BAD_REQUEST)
-
-    def delete(self, request, pk, format=None):
-        account = self.get_object(pk)
-        if account.user != request.user:
-            return Response({'error': 'Wrong credential'}, status=status.HTTP_401_UNAUTHORIZED)
-        else:
-            account.delete()
-            return Response({'message': 'Delete successfully'}, status=status.HTTP_204_NO_CONTENT)
 
 
 @api_view(["POST"])
