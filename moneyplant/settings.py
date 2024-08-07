@@ -34,6 +34,8 @@ DEBUG = False
 ALLOWED_HOSTS = ["moneyplant.onrender.com",
                  "pi.lukegu.com", "127.0.0.1", "192.168.31.221"]
 
+CSRF_TRUSTED_ORIGINS = ["https://pi.lukegu.com"]
+
 # Application definition
 INSTALLED_APPS = [
     'django.contrib.admin',
