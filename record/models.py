@@ -30,9 +30,9 @@ class Record(models.Model):
 class Transfer(models.Model):
     book = models.ForeignKey(Book, on_delete=models.SET_NULL, null=True)
     from_asset = models.ForeignKey(
-        Asset, on_delete=models.SET_NULL, null=True, blank=True, related_name='from_asset')
+        Asset, on_delete=models.SET_NULL, null=True, related_name='from_asset')
     to_asset = models.ForeignKey(
-        Asset, on_delete=models.SET_NULL, null=True, blank=True, related_name='to_asset')
+        Asset, on_delete=models.SET_NULL, null=True, related_name='to_asset')
     type = models.CharField(default='transfer')
     note = models.CharField(max_length=500, blank=True, default='')
     amount = models.DecimalField(max_digits=12, decimal_places=2)

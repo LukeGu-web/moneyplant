@@ -7,7 +7,7 @@ urlpatterns = [
     path('', views.AssetList.as_view(), name='asset-list'),
     path('<int:pk>/', views.AssetDetail.as_view()),
     # AssetGroup urls
-    path('group-list', views.AssetGroupList.as_view(), name='asset-group-list'),
+    path('group-list/', views.AssetGroupList.as_view(), name='asset-group-list'),
     path('group-list/<int:pk>/', views.AssetGroupDetail.as_view())
 ]
 

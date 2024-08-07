@@ -3,13 +3,10 @@ from .models import Account
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.contrib.auth.models import User
 
-admin.site.unregister(User)  # Necessary
+
+class AccountAdmin(admin.ModelAdmin):
+    list_display = ('id', 'user', 'accountStatus')
+    list_display_links = ('id', 'user')
 
 
-class AccountInline(admin.TabularInline):
-    model = Account
-
-
-@admin.register(User)
-class UserAdmin(BaseUserAdmin):
-    inlines = (AccountInline,)
+admin.site.register(Account, AccountAdmin)
