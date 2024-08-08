@@ -1,5 +1,6 @@
 from django.http import Http404
 from django.core.mail import BadHeaderError
+from django.contrib.auth import authenticate
 from rest_framework.authtoken.models import Token
 from rest_framework.decorators import api_view
 from rest_framework.views import APIView
@@ -66,7 +67,10 @@ def device_register_view(request):
 
         if serializer.is_valid(raise_exception=ValueError):
             account = serializer.create(validated_data=request.data)
-            data = account | {'message': 'Account has been created'}
+            user = authenticate(
+                username=request.data['user']['username'], password=request.data['user']['password'])
+            token = Token.objects.get(user=user)
+            data = account | {'token': token.key}
             return Response(data, status=status.HTTP_201_CREATED)
         else:
             return Response(serializer.error_messages, status=status.HTTP_400_BAD_REQUEST)
