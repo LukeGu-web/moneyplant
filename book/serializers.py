@@ -9,4 +9,4 @@ class BookSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Book
-        exclude = ['id', 'user']
+        exclude = ['user']
