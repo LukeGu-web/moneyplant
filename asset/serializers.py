@@ -28,4 +28,8 @@ class AssetGroupSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = AssetGroup
-        fields = "__all__"
+        fields = ['id', 'name', 'book', 'assets']
+        extra_kwargs = {
+            # Ensure 'book' can be omitted in input data
+            'book': {'required': False}
+        }
