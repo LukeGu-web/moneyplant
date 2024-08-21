@@ -27,28 +27,31 @@ class Record(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     def save(self, *args, **kwargs):
+        if self.type == 'expense' and self.amount > 0:
+            self.amount = -self.amount  # Ensure amount is negative for expense
+
         if not self.pk:  # If the record is being created
             if self.asset:
-                self.asset.balance -= self.amount
+                self.asset.balance += self.amount
                 self.asset.save()
         else:  # If the record is being updated
             old_record = Record.objects.get(pk=self.pk)
             if old_record.asset and old_record.asset != self.asset:
-                old_record.asset.balance += old_record.amount
+                old_record.asset.balance -= old_record.amount
                 old_record.asset.save()
                 if self.asset:
-                    self.asset.balance -= self.amount
+                    self.asset.balance += self.amount
                     self.asset.save()
             elif self.asset:
                 balance_change = self.amount - old_record.amount
-                self.asset.balance -= balance_change
+                self.asset.balance += balance_change
                 self.asset.save()
 
         super().save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
         if self.asset:
-            self.asset.balance += self.amount
+            self.asset.balance -= self.amount
             self.asset.save()
         super().delete(*args, **kwargs)
 
