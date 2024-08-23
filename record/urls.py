@@ -9,6 +9,7 @@ urlpatterns = [
     path('record/<int:pk>/', views.RecordDetail.as_view()),
     path('transfer/', views.TransferList.as_view()),
     path('transfer/<int:pk>/', views.TransferDetail.as_view()),
+    path('combined/', views.CombinedListView.as_view(), name='combined-list'),
 ]
 
 urlpatterns = format_suffix_patterns(urlpatterns)
