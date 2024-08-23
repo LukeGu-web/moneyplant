@@ -1,6 +1,7 @@
 from datetime import datetime
 from itertools import chain, groupby
 from operator import attrgetter
+from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import Q
 from django.utils.timezone import make_aware
 from rest_framework.decorators import api_view
@@ -10,6 +11,7 @@ from rest_framework.permissions import IsAuthenticated
 from .models import Record, Transfer
 from .serializers import RecordSerializer, TransferSerializer, GroupedDaySerializer
 from .pagination import RecordListCreatePagination
+from .filters import CombinedFilter
 from .utils import group_records_by_date
 
 
@@ -57,26 +59,38 @@ class CombinedListView(generics.ListAPIView):
     permission_classes = [IsAuthenticated]
     pagination_class = RecordListCreatePagination
     serializer_class = GroupedDaySerializer
+    filter_backends = [DjangoFilterBackend]
+    filterset_class = CombinedFilter
 
     def get_queryset(self):
         user = self.request.user
         book_id = self.request.query_params.get('book_id')
         asset_ids = self.request.query_params.getlist('asset')
 
-        # records = Record.objects.filter(book__user=user)
-        # transfers = Transfer.objects.filter(book__user=user)
-        records = Record.objects.filter(book__id=book_id)
-        transfers = Transfer.objects.filter(book__id=book_id)
+        records = Record.objects.filter(book__user=user, book__id=book_id)
+        transfers = Transfer.objects.filter(book__user=user, book__id=book_id)
 
         if asset_ids:
             records = records.filter(asset__id__in=asset_ids)
             transfers = transfers.filter(
                 Q(from_asset__id__in=asset_ids) | Q(to_asset__id__in=asset_ids)
             )
+        # Apply filters
+        combined_filter = self.filterset_class(
+            self.request.GET, queryset=records)
+        filtered_records = combined_filter.qs
+
+        # Filter transfers based on date range if provided
+        date_after = self.request.query_params.get('date_after')
+        date_before = self.request.query_params.get('date_before')
+        if date_after:
+            transfers = transfers.filter(date__gte=date_after)
+        if date_before:
+            transfers = transfers.filter(date__lte=date_before)
 
         # Combine and sort the querysets
         combined = sorted(
-            chain(records, transfers),
+            chain(filtered_records, transfers),
             key=attrgetter('date'),
             reverse=True
         )
