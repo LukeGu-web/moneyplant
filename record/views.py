@@ -8,6 +8,7 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status, generics
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.filters import SearchFilter
 from .models import Record, Transfer
 from .serializers import RecordSerializer, TransferSerializer, GroupedDaySerializer
 from .pagination import RecordListCreatePagination
@@ -59,8 +60,9 @@ class CombinedListView(generics.ListAPIView):
     permission_classes = [IsAuthenticated]
     pagination_class = RecordListCreatePagination
     serializer_class = GroupedDaySerializer
-    filter_backends = [DjangoFilterBackend]
+    filter_backends = [DjangoFilterBackend, SearchFilter]
     filterset_class = CombinedFilter
+    search_fields = ['note', 'amount']
 
     def get_queryset(self):
         user = self.request.user
@@ -79,6 +81,18 @@ class CombinedListView(generics.ListAPIView):
         combined_filter = self.filterset_class(
             self.request.GET, queryset=records)
         filtered_records = combined_filter.qs
+
+        # Apply search
+        search_query = self.request.query_params.get('search')
+        if search_query:
+            filtered_records = filtered_records.filter(
+                Q(note__icontains=search_query) | Q(
+                    amount__icontains=search_query)
+            )
+            transfers = transfers.filter(
+                Q(note__icontains=search_query) | Q(
+                    amount__icontains=search_query)
+            )
 
         # Filter transfers based on date range if provided
         date_after = self.request.query_params.get('date_after')
