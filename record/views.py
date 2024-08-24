@@ -115,8 +115,8 @@ class CombinedListView(generics.ListAPIView):
             group_list = list(group)
             sum_of_income = sum(r.amount for r in group_list if isinstance(
                 r, Record) and r.type == 'income')
-            sum_of_expense = abs(sum(r.amount for r in group_list if isinstance(
-                r, Record) and r.type == 'expense'))
+            sum_of_expense = sum(r.amount for r in group_list if isinstance(
+                r, Record) and r.type == 'expense')
 
             grouped_data.append({
                 'date': date,
