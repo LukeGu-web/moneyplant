@@ -88,6 +88,12 @@ class CombinedListView(generics.ListAPIView):
         if type_filter and type_filter != 'transfer':
             transfers = Transfer.objects.none()
 
+        # Handle 'is_marked_tax_return' filter
+        is_marked_tax_return = self.request.query_params.get(
+            'is_marked_tax_return')
+        if is_marked_tax_return == 'true':
+            transfers = Transfer.objects.none()
+
         # Apply search
         search_query = self.request.query_params.get('search')
         if search_query:

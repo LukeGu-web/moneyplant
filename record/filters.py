@@ -19,7 +19,9 @@ class CombinedFilter(django_filters.FilterSet):
             return queryset.filter(type=value)
 
     def filter_is_marked_tax_return(self, queryset, name, value):
-        return queryset.filter(Q(is_marked_tax_return=value) | Q(type='transfer'))
+        if value:
+            return queryset.filter(is_marked_tax_return=True)
+        return queryset
 
     class Meta:
         model = Record
