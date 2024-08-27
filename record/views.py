@@ -62,7 +62,7 @@ class CombinedListView(generics.ListAPIView):
     serializer_class = GroupedDaySerializer
     filter_backends = [DjangoFilterBackend, SearchFilter]
     filterset_class = CombinedFilter
-    search_fields = ['note', 'amount']
+    search_fields = ['note', 'amount', 'category', 'subcategory']
 
     def get_queryset(self):
         user = self.request.user
@@ -77,21 +77,29 @@ class CombinedListView(generics.ListAPIView):
             transfers = transfers.filter(
                 Q(from_asset__id__in=asset_ids) | Q(to_asset__id__in=asset_ids)
             )
+
         # Apply filters
         combined_filter = self.filterset_class(
             self.request.GET, queryset=records)
         filtered_records = combined_filter.qs
 
+        # Handle 'type' filter for transfers
+        type_filter = self.request.query_params.get('type')
+        if type_filter and type_filter != 'transfer':
+            transfers = Transfer.objects.none()
+
         # Apply search
         search_query = self.request.query_params.get('search')
         if search_query:
             filtered_records = filtered_records.filter(
-                Q(note__icontains=search_query) | Q(
-                    amount__icontains=search_query)
+                Q(note__icontains=search_query) |
+                Q(amount__icontains=search_query) |
+                Q(category__icontains=search_query) |
+                Q(subcategory__icontains=search_query)
             )
             transfers = transfers.filter(
-                Q(note__icontains=search_query) | Q(
-                    amount__icontains=search_query)
+                Q(note__icontains=search_query) |
+                Q(amount__icontains=search_query)
             )
 
         # Filter transfers based on date range if provided
