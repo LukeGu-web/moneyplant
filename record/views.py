@@ -126,7 +126,8 @@ class CombinedListView(generics.ListAPIView):
         # Group by date
         grouped_data = []
         for date, group in groupby(combined, key=lambda x: x.date.date()):
-            group_list = list(group)
+            group_list = sorted(
+                list(group), key=lambda x: x.date, reverse=True)
             sum_of_income = sum(r.amount for r in group_list if isinstance(
                 r, Record) and r.type == 'income')
             sum_of_expense = sum(r.amount for r in group_list if isinstance(
