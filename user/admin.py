@@ -5,7 +5,7 @@ from django.contrib.auth.models import User
 
 
 class AccountAdmin(admin.ModelAdmin):
-    list_display = ('id', 'user', 'account_status')
+    list_display = ('id', 'user', 'account_status', 'created_date')
     list_display_links = ('id', 'user')
 
 
