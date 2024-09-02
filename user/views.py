@@ -1,5 +1,6 @@
 from django.http import Http404
 from django.core.mail import BadHeaderError
+from django.contrib.auth.models import User
 from django.contrib.auth import authenticate
 from rest_framework.authtoken.models import Token
 from rest_framework.decorators import api_view
@@ -69,18 +70,38 @@ def fill_pdf_view(request):
 @api_view(http_method_names=["POST"])
 def device_register_view(request):
     if request.method == "POST":
-
         serializer = AccountSerializer(data=request.data)
 
-        if serializer.is_valid(raise_exception=ValueError):
-            account = serializer.create(validated_data=request.data)
+        if serializer.is_valid(raise_exception=True):
+            # Extract user data from the validated data
+            user_data = serializer.validated_data.pop('user')
+
+            # Create the User instance
+            user = User.objects.create_user(**user_data)
+
+            # Create the Account instance with the associated User
+            account = Account.objects.create(
+                user=user, **serializer.validated_data)
+
+            # Authenticate the user and generate a token
             user = authenticate(
-                username=request.data['user']['username'], password=request.data['user']['password'])
-            token = Token.objects.get(user=user)
-            data = account | {'token': token.key}
-            return Response(data, status=status.HTTP_201_CREATED)
+                username=user_data['username'], password=user_data['password'])
+
+            if user:
+                token, created = Token.objects.get_or_create(user=user)
+                data = {
+                    # Serialize the account data
+                    'account': AccountSerializer(account).data,
+                    'token': token.key  # Include the authentication token
+                }
+                return Response(data, status=status.HTTP_201_CREATED)
+            else:
+                return Response(
+                    {"detail": "Authentication failed."},
+                    status=status.HTTP_401_UNAUTHORIZED
+                )
         else:
-            return Response(serializer.error_messages, status=status.HTTP_400_BAD_REQUEST)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 @api_view(http_method_names=["GET"])

@@ -22,10 +22,10 @@ class UserSerializer(serializers.ModelSerializer):
 
 class AccountSerializer(serializers.ModelSerializer):
     user = UserSerializer(required=True)
-    # account_id = serializers.CharField(read_only=True)
-    # avatar = serializers.ImageField(required=False, allow_null=True)
-    # created_date = serializers.DateTimeField(read_only=True)
-    # nickname = serializers.CharField(required=False, allow_blank=True)
+    account_id = serializers.CharField(read_only=True, allow_null=True)
+    avatar = serializers.ImageField(required=False, allow_null=True)
+    created_date = serializers.DateTimeField(read_only=True)
+    nickname = serializers.CharField(required=False, allow_blank=True)
 
     class Meta:
         model = Account
@@ -42,10 +42,10 @@ class AccountSerializer(serializers.ModelSerializer):
         result = {
             "id": account.id,
             "account_status": account.account_status,
-            # "avatar": account.avatar,
-            # "nickname": account.nickname,
-            # "created_at": account.created_at,
-            # "account_id": account.account_id
+            "avatar": account.avatar,
+            "nickname": account.nickname,
+            "created_at": account.created_at,
+            "account_id": account.account_id
         }
         return result
 
