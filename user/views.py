@@ -22,6 +22,13 @@ class AccountDetail(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = AccountSerializer
     permission_classes = [IsOwner]
 
+    def get_queryset(self):
+        """
+        Optionally restricts the returned accounts to the user who is the owner.
+        """
+        user = self.request.user
+        return Account.objects.filter(user=user)
+
 
 @api_view(http_method_names=["POST"])
 def tax_return_view(request):

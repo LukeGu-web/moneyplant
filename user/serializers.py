@@ -22,6 +22,10 @@ class UserSerializer(serializers.ModelSerializer):
 
 class AccountSerializer(serializers.ModelSerializer):
     user = UserSerializer(required=True)
+    # account_id = serializers.CharField(read_only=True)
+    # avatar = serializers.ImageField(required=False, allow_null=True)
+    # created_date = serializers.DateTimeField(read_only=True)
+    # nickname = serializers.CharField(required=False, allow_blank=True)
 
     class Meta:
         model = Account
@@ -33,22 +37,28 @@ class AccountSerializer(serializers.ModelSerializer):
             UserSerializer(), validated_data=user_data)
         account, created = Account.objects.update_or_create(
             user=new_user,
-            accountStatus=validated_data['accountStatus']
+            defaults={**validated_data}
         )
-        result = {"id": account.id, 'accountStatus': account.accountStatus}
+        result = {
+            "id": account.id,
+            "account_status": account.account_status,
+            # "avatar": account.avatar,
+            # "nickname": account.nickname,
+            # "created_at": account.created_at,
+            # "account_id": account.account_id
+        }
         return result
 
     def update(self, instance, validated_data):
-        user_data = validated_data.pop('user')
-        user_serializer = self.fields['user']
-        user_instance = instance.user
-        account_updated = super().update(instance, validated_data)
+        user_data = validated_data.pop('user', None)
         if user_data:
-            meta = user_serializer.update(
-                instance=user_instance, validated_data=user_data)
-            account_updated.meta = meta
-        # accountStatus = self.fields['accountStatus']
-        # if accountStatus == "unregistered":
-        # if User.objects.filter(email=self.validated_data['email']).exists():
-        #     raise serializers.ValidationError({"Error": "Email already exist"})
-        return account_updated
+            user_serializer = self.fields['user']
+            user_instance = instance.user
+            user_serializer.update(user_instance, user_data)
+
+        # Update Account fields
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+
+        instance.save()
+        return instance
