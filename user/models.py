@@ -20,6 +20,5 @@ class Account(models.Model):
         max_length=100, unique=True, null=True, blank=True)
     account_status = models.CharField(max_length=100)
     avatar = models.BinaryField(null=True, blank=True)
-    created_date = models.DateTimeField(auto_now_add=True, null=True,)
     nickname = models.CharField(
         max_length=100, null=True, blank=True, default="anonymous")
