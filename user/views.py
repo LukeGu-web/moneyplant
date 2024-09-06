@@ -30,6 +30,30 @@ class AccountDetail(generics.RetrieveUpdateDestroyAPIView):
         user = self.request.user
         return Account.objects.filter(user=user)
 
+    def update(self, request, *args, **kwargs):
+        instance = self.get_object()
+        user_data = request.data.get('user', {})
+        new_password = user_data.get('password')
+
+        # Handle password change explicitly
+        if new_password:
+            instance.user.set_password(new_password)
+            instance.user.save()
+            print(f"Password updated for user {instance.user.username}")
+            print(f"New password hash: {instance.user.password}")
+
+        # Update the remaining fields
+        # Exclude the password from serializer data to avoid re-hashing
+        if 'user' in request.data and 'password' in request.data['user']:
+            request.data['user'].pop('password')
+
+        serializer = self.get_serializer(
+            instance, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+
+        return Response(serializer.data)
+
 
 @api_view(http_method_names=["POST"])
 def tax_return_view(request):

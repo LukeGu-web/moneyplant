@@ -58,7 +58,7 @@ class UserSerializer(serializers.ModelSerializer):
 
 class AccountSerializer(serializers.ModelSerializer):
     user = UserSerializer(required=True)
-    account_id = serializers.CharField(read_only=True, allow_null=True)
+    account_id = serializers.CharField(allow_null=True)
     avatar = Base64ImageField(required=False, allow_null=True)
     nickname = serializers.CharField(required=False, allow_blank=True)
 
