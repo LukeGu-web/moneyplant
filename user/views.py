@@ -1,22 +1,21 @@
-from django.http import Http404
 from django.core.mail import BadHeaderError
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate
-from django.utils.http import urlsafe_base64_decode
+from django.contrib.sites.shortcuts import get_current_site
 from django.http import HttpResponse
+from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
+from django.urls import reverse
+from django.utils.encoding import force_bytes
+
 from rest_framework.authtoken.models import Token
 from rest_framework.decorators import api_view
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status, generics
-from django.urls import reverse
-from django.utils.encoding import force_bytes
-from django.utils.http import urlsafe_base64_encode
-from django.contrib.sites.shortcuts import get_current_site
 
 from .serializers import AccountSerializer
 from .models import Account
-from .permissions import IsOwnerOrReadonly, IsOwner
+from .permissions import IsOwner
 from .utils import Util, EmailVerificationTokenGenerator
 # from rest_framework_simplejwt.tokens import RefreshToken
 
@@ -172,20 +171,20 @@ def device_register_view(request):
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-@api_view(http_method_names=["GET"])
-def user_details_view(request):
-    if request.method == "GET":
-        try:
-            user = Token.objects.get(key=request.auth.key).user
-            account = Account.objects.get(user=user)
-            serializer = AccountSerializer(account)
-            return Response(serializer.data, status=status.HTTP_200_OK)
-        except Token.DoesNotExist:
-            raise Http404
+# @api_view(http_method_names=["GET"])
+# def user_details_view(request):
+#     if request.method == "GET":
+#         try:
+#             user = Token.objects.get(key=request.auth.key).user
+#             account = Account.objects.get(user=user)
+#             serializer = AccountSerializer(account)
+#             return Response(serializer.data, status=status.HTTP_200_OK)
+#         except Token.DoesNotExist:
+#             raise Http404
 
 
-@api_view(["POST"])
-def logout_user(request):
-    if request.method == "POST":
-        request.user.auth_token.delete()
-        return Response({"message": "You are logged out"}, status=status.HTTP_200_OK)
+# @api_view(["POST"])
+# def logout_user(request):
+#     if request.method == "POST":
+#         request.user.auth_token.delete()
+#         return Response({"message": "You are logged out"}, status=status.HTTP_200_OK)
