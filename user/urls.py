@@ -16,4 +16,6 @@ urlpatterns = [
     path("device-register/", views.device_register_view, name="device-register"),
     path("tax-return/", views.tax_return_view),
     path("fill-pdf/", views.fill_pdf_view),
+    path('verify-email/<uidb64>/<token>/',
+         views.VerifyEmail.as_view(), name='verify_email'),
 ]

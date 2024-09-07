@@ -2,17 +2,25 @@ from django.http import Http404
 from django.core.mail import BadHeaderError
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate
+from django.utils.http import urlsafe_base64_decode
+from django.http import HttpResponse
 from rest_framework.authtoken.models import Token
 from rest_framework.decorators import api_view
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status, generics
+from django.urls import reverse
+from django.utils.encoding import force_bytes
+from django.utils.http import urlsafe_base64_encode
+from django.contrib.sites.shortcuts import get_current_site
 
 from .serializers import AccountSerializer
 from .models import Account
 from .permissions import IsOwnerOrReadonly, IsOwner
-from .utils import Util
+from .utils import Util, EmailVerificationTokenGenerator
 # from rest_framework_simplejwt.tokens import RefreshToken
+
+email_verification_token = EmailVerificationTokenGenerator()
 
 
 class AccountDetail(generics.RetrieveUpdateDestroyAPIView):
@@ -34,6 +42,7 @@ class AccountDetail(generics.RetrieveUpdateDestroyAPIView):
         instance = self.get_object()
         user_data = request.data.get('user', {})
         new_password = user_data.get('password')
+        account_status = request.data.get('account_status')
 
         # Handle password change explicitly
         if new_password:
@@ -41,6 +50,23 @@ class AccountDetail(generics.RetrieveUpdateDestroyAPIView):
             instance.user.save()
             print(f"Password updated for user {instance.user.username}")
             print(f"New password hash: {instance.user.password}")
+            print(f"account_status: {account_status}")
+            if account_status == 'registered':
+                # Send verification email
+                token = email_verification_token.make_token(instance.user)
+                uid = urlsafe_base64_encode(force_bytes(instance.user.pk))
+                current_site = get_current_site(request)
+                verification_link = reverse('verify_email', kwargs={
+                                            'uidb64': uid, 'token': token})
+                verification_url = f"http://{
+                    current_site.domain}{verification_link}"
+                print(f"email: {instance.user.email}")
+                print(f"verification_url: {verification_url}")
+                Util.send_email({
+                    "email_subject": 'Verify your email address',
+                    "email_body": f'Click the link to verify your email: {verification_url}',
+                    "to_email": instance.user.email,
+                })
 
         # Update the remaining fields
         # Exclude the password from serializer data to avoid re-hashing
@@ -53,6 +79,24 @@ class AccountDetail(generics.RetrieveUpdateDestroyAPIView):
         self.perform_update(serializer)
 
         return Response(serializer.data)
+
+
+class VerifyEmail(APIView):
+    def get(self, request, uidb64, token):
+        try:
+            uid = urlsafe_base64_decode(uidb64).decode()
+            user = User.objects.get(pk=uid)
+        except (TypeError, ValueError, OverflowError, User.DoesNotExist):
+            user = None
+
+        if user is not None and email_verification_token.check_token(user, token):
+            # Email verified successfully, update account_status
+            account = Account.objects.get(user=user)
+            account.account_status = "verified"
+            account.save()
+            return HttpResponse('Email verification successful!')
+        else:
+            return HttpResponse('Email verification failed, invalid link.')
 
 
 @api_view(http_method_names=["POST"])
