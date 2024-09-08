@@ -98,6 +98,30 @@ class VerifyEmail(APIView):
             return HttpResponse('Email verification failed, invalid link.')
 
 
+@api_view(["POST"])
+def send_verification_email(request):
+    if request.method == "POST":
+        try:
+            user = Token.objects.get(key=request.auth.key).user
+            token = email_verification_token.make_token(user)
+            uid = urlsafe_base64_encode(force_bytes(user.pk))
+            current_site = get_current_site(request)
+            verification_link = reverse('verify_email', kwargs={
+                                        'uidb64': uid, 'token': token})
+            verification_url = f"http://{
+                current_site.domain}{verification_link}"
+            print(f"email: {instance.user.email}")
+            print(f"verification_url: {verification_url}")
+            Util.send_email({
+                "email_subject": 'Verify your email address',
+                "email_body": f'Click the link to verify your email: {verification_url}',
+                "to_email": instance.user.email,
+            })
+        except BadHeaderError:
+            return Response({"error": "Invalid header found."}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({"details": "Send successfully."}, status=status.HTTP_200_OK)
+
+
 @api_view(http_method_names=["POST"])
 def tax_return_view(request):
     if request.method == "POST":
