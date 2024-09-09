@@ -110,12 +110,12 @@ def send_verification_email(request):
                                         'uidb64': uid, 'token': token})
             verification_url = f"http://{
                 current_site.domain}{verification_link}"
-            print(f"email: {instance.user.email}")
+            print(f"email: {user.email}")
             print(f"verification_url: {verification_url}")
             Util.send_email({
                 "email_subject": 'Verify your email address',
                 "email_body": f'Click the link to verify your email: {verification_url}',
-                "to_email": instance.user.email,
+                "to_email": user.email,
             })
         except BadHeaderError:
             return Response({"error": "Invalid header found."}, status=status.HTTP_400_BAD_REQUEST)
@@ -195,16 +195,16 @@ def device_register_view(request):
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-# @api_view(http_method_names=["GET"])
-# def user_details_view(request):
-#     if request.method == "GET":
-#         try:
-#             user = Token.objects.get(key=request.auth.key).user
-#             account = Account.objects.get(user=user)
-#             serializer = AccountSerializer(account)
-#             return Response(serializer.data, status=status.HTTP_200_OK)
-#         except Token.DoesNotExist:
-#             raise Http404
+@api_view(http_method_names=["GET"])
+def user_details_view(request):
+    if request.method == "GET":
+        try:
+            user = Token.objects.get(key=request.auth.key).user
+            account = Account.objects.get(user=user)
+            serializer = AccountSerializer(account)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except Token.DoesNotExist:
+            return Response({"error": "User not found."}, status=status.HTTP_404_NOT_FOUND)
 
 
 # @api_view(["POST"])

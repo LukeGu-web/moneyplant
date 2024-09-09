@@ -9,7 +9,7 @@ from . import views
 urlpatterns = [
     # path('token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     # path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
-    # path('details/', views.user_details_view),
+    path('details/', views.user_details_view),
     path('<int:pk>/', views.AccountDetail.as_view()),
     path("login/", obtain_auth_token, name="login"),
     # path("logout/", views.logout_user, name="logout"),
