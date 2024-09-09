@@ -57,8 +57,7 @@ class AccountDetail(generics.RetrieveUpdateDestroyAPIView):
                 current_site = get_current_site(request)
                 verification_link = reverse('verify_email', kwargs={
                                             'uidb64': uid, 'token': token})
-                verification_url = f"http://{
-                    current_site.domain}{verification_link}"
+                verification_url = f"http://{current_site.domain}{verification_link}"
                 print(f"email: {instance.user.email}")
                 print(f"verification_url: {verification_url}")
                 Util.send_email({
@@ -106,10 +105,8 @@ def send_verification_email(request):
             token = email_verification_token.make_token(user)
             uid = urlsafe_base64_encode(force_bytes(user.pk))
             current_site = get_current_site(request)
-            verification_link = reverse('verify_email', kwargs={
-                                        'uidb64': uid, 'token': token})
-            verification_url = f"http://{
-                current_site.domain}{verification_link}"
+            verification_link = reverse('verify_email', kwargs={'uidb64': uid, 'token': token})
+            verification_url = f"http://{current_site.domain}{verification_link}"
             print(f"email: {user.email}")
             print(f"verification_url: {verification_url}")
             Util.send_email({
