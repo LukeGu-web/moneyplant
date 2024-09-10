@@ -32,18 +32,3 @@ class GroupedDaySerializer(serializers.Serializer):
     records = CombinedRecordSerializer(many=True)
     sum_of_income = serializers.DecimalField(max_digits=12, decimal_places=2)
     sum_of_expense = serializers.DecimalField(max_digits=12, decimal_places=2)
-
-
-class SubcategoryGroupSerializer(serializers.Serializer):
-    subcategory = serializers.CharField()
-    records = RecordSerializer(many=True)
-
-
-class CategoryGroupSerializer(serializers.Serializer):
-    category = serializers.CharField()
-    subcategories = SubcategoryGroupSerializer(many=True)
-
-
-class GroupedRecordSerializer(serializers.Serializer):
-    type = serializers.CharField()
-    categories = CategoryGroupSerializer(many=True)
