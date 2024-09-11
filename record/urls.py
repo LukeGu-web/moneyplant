@@ -11,6 +11,8 @@ urlpatterns = [
     path('transfer/<int:pk>/', views.TransferDetail.as_view()),
     path('combined/', views.CombinedListView.as_view(), name='combined-list'),
     path('category/', views.CategoriedRecordView.as_view(), name='categoried-list'),
+    path('monthly-data/', views.MonthlyDataView.as_view(), name='monthly-data'),
+    path('trend/', views.RecordTrendView.as_view(), name='trend'),
 ]
 
 urlpatterns = format_suffix_patterns(urlpatterns)

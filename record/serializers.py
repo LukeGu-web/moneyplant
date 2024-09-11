@@ -32,3 +32,9 @@ class GroupedDaySerializer(serializers.Serializer):
     records = CombinedRecordSerializer(many=True)
     sum_of_income = serializers.DecimalField(max_digits=12, decimal_places=2)
     sum_of_expense = serializers.DecimalField(max_digits=12, decimal_places=2)
+
+
+class MonthlyDataSerializer(serializers.Serializer):
+    month = serializers.DateTimeField(format="%Y-%m")
+    monthly_income = serializers.DecimalField(max_digits=12, decimal_places=2)
+    monthly_expense = serializers.DecimalField(max_digits=12, decimal_places=2)
