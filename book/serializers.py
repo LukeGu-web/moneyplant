@@ -5,6 +5,7 @@ from asset.models import AssetGroup
 
 
 class BookSerializer(serializers.ModelSerializer):
+    # response includes groups
     groups = AssetGroupSerializer(many=True, required=False)
 
     class Meta:
@@ -23,3 +24,14 @@ class BookSerializer(serializers.ModelSerializer):
             AssetGroup.objects.create(book=book, **group_data)
 
         return book
+
+    def to_representation(self, instance):
+        # Get the original representation
+        representation = super().to_representation(instance)
+
+        # If the request method is GET and it's for the list view, remove 'groups'
+        request = self.context.get('request')
+        if request and request.method == 'GET' and 'pk' not in request.parser_context['kwargs']:
+            representation.pop('groups', None)
+
+        return representation

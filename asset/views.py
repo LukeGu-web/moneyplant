@@ -78,9 +78,22 @@ class AssetList(generics.ListCreateAPIView):
     List all Assets, or create a new Asset.
     """
     permission_classes = [IsAuthenticated]
-
-    queryset = Asset.objects.all()
     serializer_class = AssetSerializer
+
+    def get_queryset(self):
+        queryset = Asset.objects.all()
+        book_id = self.request.query_params.get('book_id')
+
+        if book_id:
+            try:
+                # Ensure the book exists
+                book = Book.objects.get(id=book_id)
+                # Filter assets by asset groups associated with the book
+                queryset = queryset.filter(group__book_id=book_id)
+            except Book.DoesNotExist:
+                raise ValidationError({"detail": "Book not found"})
+
+        return queryset
 
 
 class AssetDetail(generics.RetrieveUpdateDestroyAPIView):
