@@ -1,11 +1,18 @@
 from rest_framework import generics
 from rest_framework.response import Response
 from rest_framework.exceptions import ValidationError
-from record.models import Record
-from book.models import Book
-from record.utils import string_to_color
 from decimal import Decimal
 from collections import defaultdict
+from itertools import cycle
+from record.models import Record
+from book.models import Book
+
+
+colors = ("#519DE9", "#7CC674", "#73C5C5", "#8481DD", "#F6D173", "#EF9234", "#A30000", "#D2D2D2",
+          "#0066CC", "#4CB140", "#009596", "#5752D1", "#F4C145", "#EC7A08", "#7D1007", "#B8BBBE",
+          "#004B95", "#38812F", "#005F60", "#3C3D99", "#F0AB00", "#C46100", "#470000", "#8A8D90",
+          "#002F5D", "#23511E", "#003737", "#2A265F", "#C58C00", "#8F4700", "#2C0000", "#6A6E73",
+          "#8BC1F7", "#BDE2B9", "#A2D9D9", "#B2B0EA", "#F9E0A2", "#F4B678", "#C9190B", "#F0F0F0")
 
 
 class CategoriedRecordView(generics.ListAPIView):
@@ -51,6 +58,7 @@ class CategoriedRecordView(generics.ListAPIView):
         result = {}
         for record_type, type_data in grouped_data.items():
             type_total = type_data['total_amount']
+            color_cycle = cycle(colors)
             category_data = []
             details = {}
 
@@ -61,7 +69,7 @@ class CategoriedRecordView(generics.ListAPIView):
 
                 category_data.append({
                     'value': float(cat_percentage),
-                    'color': string_to_color(category),
+                    'color': next(color_cycle),
                     'text': category
                 })
 
