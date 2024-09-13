@@ -1,9 +1,9 @@
-from django.db import models
+from django.db import models, transaction
 from django.contrib.auth.models import User
 from django.utils import timezone
+from decimal import Decimal
 from book.models import Book
 from asset.models import Asset
-# Create your models here.
 
 TYPE_CHOICES = (('income', 'income'), ('expense', 'expense'))
 
@@ -27,33 +27,30 @@ class Record(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     def save(self, *args, **kwargs):
-        if self.type == 'expense' and self.amount > 0:
-            self.amount = -self.amount  # Ensure amount is negative for expense
+        with transaction.atomic():
+            if self.type == 'expense' and self.amount > 0:
+                self.amount = -self.amount  # Ensure amount is negative for expense
 
-        if not self.pk:  # If the record is being created
-            if self.asset:
-                self.asset.balance += self.amount
-                self.asset.save()
-        else:  # If the record is being updated
-            old_record = Record.objects.get(pk=self.pk)
-            if old_record.asset and old_record.asset != self.asset:
-                old_record.asset.balance -= old_record.amount
-                old_record.asset.save()
-                if self.asset:
-                    self.asset.balance += self.amount
-                    self.asset.save()
-            elif self.asset:
-                balance_change = self.amount - old_record.amount
-                self.asset.balance += balance_change
-                self.asset.save()
+            if not self.pk:  # If the record is being created
+                self._update_asset_balance(self.amount)
+            else:  # If the record is being updated
+                old_record = Record.objects.select_for_update().get(pk=self.pk)
+                old_amount = old_record.amount
+                self._update_asset_balance(self.amount - old_amount)
 
-        super().save(*args, **kwargs)
+            super().save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
+        with transaction.atomic():
+            self._update_asset_balance(-self.amount)
+            super().delete(*args, **kwargs)
+
+    def _update_asset_balance(self, amount_change):
         if self.asset:
-            self.asset.balance -= self.amount
+            self.asset = Asset.objects.select_for_update().get(pk=self.asset.pk)
+            self.asset.balance = self.asset.balance + \
+                Decimal(str(amount_change))
             self.asset.save()
-        super().delete(*args, **kwargs)
 
 
 class Transfer(models.Model):
@@ -70,36 +67,27 @@ class Transfer(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     def save(self, *args, **kwargs):
-        if not self.pk:  # If the transfer is being created
-            if self.from_asset:
-                self.from_asset.balance -= self.amount
-                self.from_asset.save()
-            if self.to_asset:
-                self.to_asset.balance += self.amount
-                self.to_asset.save()
-        else:  # If the transfer is being updated
-            old_transfer = Transfer.objects.get(pk=self.pk)
-            if old_transfer.from_asset:
-                old_transfer.from_asset.balance += old_transfer.amount
-                old_transfer.from_asset.save()
-            if old_transfer.to_asset:
-                old_transfer.to_asset.balance -= old_transfer.amount
-                old_transfer.to_asset.save()
+        with transaction.atomic():
+            if not self.pk:  # If the transfer is being created
+                self._update_asset_balances(self.amount)
+            else:  # If the transfer is being updated
+                old_transfer = Transfer.objects.select_for_update().get(pk=self.pk)
+                old_amount = old_transfer.amount
+                self._update_asset_balances(self.amount - old_amount)
 
-            if self.from_asset:
-                self.from_asset.balance -= self.amount
-                self.from_asset.save()
-            if self.to_asset:
-                self.to_asset.balance += self.amount
-                self.to_asset.save()
-
-        super().save(*args, **kwargs)
+            super().save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
+        with transaction.atomic():
+            self._update_asset_balances(-self.amount)
+            super().delete(*args, **kwargs)
+
+    def _update_asset_balances(self, amount_change):
         if self.from_asset:
-            self.from_asset.balance += self.amount
+            self.from_asset = Asset.objects.select_for_update().get(pk=self.from_asset.pk)
+            self.from_asset.balance -= Decimal(str(amount_change))
             self.from_asset.save()
         if self.to_asset:
-            self.to_asset.balance -= self.amount
+            self.to_asset = Asset.objects.select_for_update().get(pk=self.to_asset.pk)
+            self.to_asset.balance += Decimal(str(amount_change))
             self.to_asset.save()
-        super().delete(*args, **kwargs)
