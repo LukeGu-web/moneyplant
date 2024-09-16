@@ -23,24 +23,24 @@ class RecordTrendView(generics.ListAPIView):
 
     def list(self, request, *args, **kwargs):
         filter_type = request.query_params.get('type', 'balance')
-        time_frame = request.query_params.get('time_frame', '')
+        timeframe = request.query_params.get('timeframe', '')
 
         queryset = self.get_queryset()
 
         if filter_type in ['income', 'expense']:
             queryset = queryset.filter(type=filter_type)
 
-        # Parse time_frame
-        if '@' in time_frame:
-            year, week = time_frame.split('@')
+        # Parse timeframe
+        if '@' in timeframe:
+            year, week = timeframe.split('@')
             return self.get_week_data(queryset, filter_type, int(year), int(week))
-        elif '-' in time_frame:
-            year, month = time_frame.split('-')
+        elif '-' in timeframe:
+            year, month = timeframe.split('-')
             return self.get_month_data(queryset, filter_type, int(year), int(month))
-        elif time_frame.isdigit():
-            return self.get_year_data(queryset, filter_type, int(time_frame))
+        elif timeframe.isdigit():
+            return self.get_year_data(queryset, filter_type, int(timeframe))
         else:
-            raise ValidationError({"detail": "Invalid time_frame format"})
+            raise ValidationError({"detail": "Invalid timeframe format"})
 
     def get_year_data(self, queryset, filter_type, year):
         queryset = queryset.filter(date__year=year)
