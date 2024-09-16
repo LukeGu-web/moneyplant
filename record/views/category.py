@@ -5,9 +5,9 @@ from decimal import Decimal
 from collections import defaultdict
 from itertools import cycle
 from record.models import Record
-from book.models import Book
 from django.db.models import Q
 from datetime import datetime, timedelta
+import re
 
 colors = ("#519DE9", "#7CC674", "#73C5C5", "#8481DD", "#F6D173", "#EF9234", "#A30000", "#D2D2D2",
           "#0066CC", "#4CB140", "#009596", "#5752D1", "#F4C145", "#EC7A08", "#7D1007", "#B8BBBE",
@@ -23,46 +23,46 @@ class CategoriedRecordView(generics.ListAPIView):
         record_type = self.request.query_params.get('type')
         timeframe = self.request.query_params.get('timeframe')
 
-        queryset = Record.objects.all()
+        filters = Q()
 
         if book_id:
-            try:
-                queryset = queryset.filter(book_id=book_id)
-            except Book.DoesNotExist:
-                raise ValidationError({"detail": "Book not found"})
+            filters &= Q(book_id=book_id)
 
         if record_type:
             if record_type not in ['income', 'expense']:
                 raise ValidationError(
                     {"detail": "Invalid type. Must be 'income' or 'expense'."})
-            queryset = queryset.filter(type=record_type)
+            filters &= Q(type=record_type)
         else:
             raise ValidationError(
                 {"detail": "Type parameter is required. Must be 'income' or 'expense'."})
 
         if timeframe:
-            try:
-                if len(timeframe) == 4:  # YYYY
-                    year = int(timeframe)
-                    queryset = queryset.filter(date__year=year)
-                elif len(timeframe) == 7:  # YYYY-MM
-                    year, month = map(int, timeframe.split('-'))
-                    queryset = queryset.filter(
-                        date__year=year, date__month=month)
-                elif len(timeframe) == 7 and '@' in timeframe:  # YYYY@WW
-                    year, week = map(int, timeframe.split('@'))
-                    start_date = datetime.strptime(
-                        f'{year}-W{week}-1', "%Y-W%W-%w").date()
-                    end_date = start_date + timedelta(days=6)
-                    queryset = queryset.filter(
-                        date__range=[start_date, end_date])
-                else:
-                    raise ValueError
-            except ValueError:
-                raise ValidationError(
-                    {"detail": "Invalid timeframe format. Use YYYY, YYYY-MM, or YYYY@WW."})
+            filters &= self.build_timeframe_filter(timeframe)
 
-        return queryset
+        return Record.objects.filter(filters)
+
+    def build_timeframe_filter(self, timeframe):
+        try:
+            if len(timeframe) == 4:  # YYYY
+                return Q(date__year=int(timeframe))
+            elif len(timeframe) == 7 and '-' in timeframe:  # YYYY-MM
+                year, month = map(int, timeframe.split('-'))
+                return Q(date__year=year, date__month=month)
+            elif len(timeframe) == 7 and '@' in timeframe:  # YYYY@WW
+                match = re.match(r'(\d{4})@(\d{2})', timeframe)
+                if not match:
+                    raise ValueError("Invalid YYYY@WW format")
+                year, week = map(int, match.groups())
+                start_date = datetime.strptime(
+                    f'{year}-W{week}-1', "%Y-W%W-%w").date()
+                end_date = start_date + timedelta(days=6)
+                return Q(date__range=[start_date, end_date])
+            else:
+                raise ValueError
+        except ValueError as e:
+            raise ValidationError(
+                {"detail": f"Invalid timeframe format. Use YYYY, YYYY-MM, or YYYY@WW. Error: {str(e)}"})
 
     def list(self, request, *args, **kwargs):
         queryset = self.get_queryset()
