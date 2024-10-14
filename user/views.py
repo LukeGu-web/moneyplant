@@ -2,10 +2,10 @@ from django.core.mail import BadHeaderError
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate
 from django.contrib.sites.shortcuts import get_current_site
-from django.http import HttpResponse
 from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 from django.urls import reverse
 from django.utils.encoding import force_bytes
+from django.shortcuts import redirect
 
 from rest_framework.authtoken.models import Token
 from rest_framework.decorators import api_view
@@ -57,7 +57,8 @@ class AccountDetail(generics.RetrieveUpdateDestroyAPIView):
                 current_site = get_current_site(request)
                 verification_link = reverse('verify_email', kwargs={
                                             'uidb64': uid, 'token': token})
-                verification_url = f"http://{current_site.domain}{verification_link}"
+                verification_url = f"http://{
+                    current_site.domain}{verification_link}"
                 print(f"email: {instance.user.email}")
                 print(f"verification_url: {verification_url}")
                 Util.send_email({
@@ -92,9 +93,9 @@ class VerifyEmail(APIView):
             account = Account.objects.get(user=user)
             account.account_status = "verified"
             account.save()
-            return HttpResponse('Email verification successful!')
+            return redirect("https://getrich-web.netlify.app/verification/")
         else:
-            return HttpResponse('Email verification failed, invalid link.')
+            return redirect("https://getrich-web.netlify.app/verification/failure/")
 
 
 @api_view(["POST"])
@@ -105,8 +106,10 @@ def send_verification_email(request):
             token = email_verification_token.make_token(user)
             uid = urlsafe_base64_encode(force_bytes(user.pk))
             current_site = get_current_site(request)
-            verification_link = reverse('verify_email', kwargs={'uidb64': uid, 'token': token})
-            verification_url = f"http://{current_site.domain}{verification_link}"
+            verification_link = reverse('verify_email', kwargs={
+                                        'uidb64': uid, 'token': token})
+            verification_url = f"http://{
+                current_site.domain}{verification_link}"
             print(f"email: {user.email}")
             print(f"verification_url: {verification_url}")
             Util.send_email({
