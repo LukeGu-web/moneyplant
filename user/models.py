@@ -18,7 +18,8 @@ class Account(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     account_id = models.CharField(
         max_length=100, unique=True, null=True, blank=True)
-    account_status = models.CharField(max_length=100)
+    account_status = models.CharField(max_length=20, default="unverified")
+    expo_push_token = models.CharField(max_length=255, blank=True, null=True)
     avatar = models.BinaryField(null=True, blank=True)
     nickname = models.CharField(
         max_length=100, null=True, blank=True, default="anonymous")
