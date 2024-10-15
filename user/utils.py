@@ -4,6 +4,8 @@ from django.contrib.auth.tokens import PasswordResetTokenGenerator
 from django.utils.http import base36_to_int
 import six
 from fillpdf import fillpdfs
+from exponent_server_sdk import DeviceNotRegisteredError, PushClient, PushMessage, PushServerError, PushTicketError
+from requests.exceptions import ConnectionError, HTTPError
 
 
 class EmailThread(threading.Thread):
@@ -35,6 +37,21 @@ class Util:
         }
         fillpdfs.write_fillable_pdf(
             'doc/test_file.pdf', 'doc/new.pdf', data)
+
+    def send_push_message(token, message, extra=None):
+        try:
+            response = PushClient().publish(
+                PushMessage(to=token,
+                            body=message,
+                            data=extra))
+        except PushServerError as exc:
+            print(f"Push server error: {exc}")
+        except (ConnectionError, HTTPError) as exc:
+            print(f"Connection or HTTP error: {exc}")
+        except DeviceNotRegisteredError:
+            print(f"Device not registered")
+        except PushTicketError as exc:
+            print(f"Push ticket error: {exc}")
 
 
 class EmailVerificationTokenGenerator(PasswordResetTokenGenerator):

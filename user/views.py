@@ -8,9 +8,10 @@ from django.utils.encoding import force_bytes
 from django.shortcuts import redirect
 
 from rest_framework.authtoken.models import Token
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view, permission_classes
 from rest_framework.views import APIView
 from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
 from rest_framework import status, generics
 
 from .serializers import AccountSerializer
@@ -93,6 +94,14 @@ class VerifyEmail(APIView):
             account = Account.objects.get(user=user)
             account.account_status = "verified"
             account.save()
+            # Send push notification if expo_push_token is available
+            if account.expo_push_token:
+                Util.send_push_message(
+                    token=account.expo_push_token,
+                    message="Your email has been successfully verified!",
+                    extra={"type": "EMAIL_VERIFIED"}
+                )
+
             return redirect("https://getrich-web.netlify.app/verification/")
         else:
             return redirect("https://getrich-web.netlify.app/verification/failure/")
@@ -120,6 +129,20 @@ def send_verification_email(request):
         except BadHeaderError:
             return Response({"error": "Invalid header found."}, status=status.HTTP_400_BAD_REQUEST)
         return Response({"details": "Send successfully."}, status=status.HTTP_200_OK)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def register_push_token(request):
+    token = request.data.get('token')
+    if not token:
+        return Response({'error': 'Expo push token is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+    account, created = Account.objects.get_or_create(user=request.user)
+    account.expo_push_token = token
+    account.save()
+
+    return Response({'message': 'Expo push token registered successfully'}, status=status.HTTP_200_OK)
 
 
 @api_view(http_method_names=["POST"])
