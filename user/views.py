@@ -142,7 +142,7 @@ def register_push_token(request):
     account.expo_push_token = token
     account.save()
 
-    return Response({'message': 'Expo push token registered successfully'}, status=status.HTTP_200_OK)
+    return Response({'details': 'Expo push token registered successfully'}, status=status.HTTP_200_OK)
 
 
 @api_view(http_method_names=["POST"])
