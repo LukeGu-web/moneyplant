@@ -102,9 +102,9 @@ class VerifyEmail(APIView):
                     extra={"type": "EMAIL_VERIFIED"}
                 )
 
-            return redirect("https://getrich-web.netlify.app/verification/")
+            return redirect("https://getrich.lukegu.com/verification/")
         else:
-            return redirect("https://getrich-web.netlify.app/verification/failure/")
+            return redirect("https://getrich.lukegu.com/verification/failure/")
 
 
 @api_view(["POST"])
