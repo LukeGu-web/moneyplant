@@ -36,7 +36,20 @@ class Record(models.Model):
             else:  # If the record is being updated
                 old_record = Record.objects.select_for_update().get(pk=self.pk)
                 old_amount = old_record.amount
-                self._update_asset_balance(self.amount - old_amount)
+                old_asset = old_record.asset
+
+                # Handle the case when an asset is assigned for the first time
+                if not old_asset and self.asset:
+                    self._update_asset_balance(self.amount)
+                elif old_asset != self.asset:
+                    # If the asset has changed, update both old and new assets
+                    if old_asset:
+                        self._update_asset_balance(-old_amount, old_asset)
+                    if self.asset:
+                        self._update_asset_balance(self.amount)
+                else:
+                    # If the asset hasn't changed, update with the difference
+                    self._update_asset_balance(self.amount - old_amount)
 
             super().save(*args, **kwargs)
 
@@ -45,12 +58,12 @@ class Record(models.Model):
             self._update_asset_balance(-self.amount)
             super().delete(*args, **kwargs)
 
-    def _update_asset_balance(self, amount_change):
-        if self.asset:
-            self.asset = Asset.objects.select_for_update().get(pk=self.asset.pk)
-            self.asset.balance = self.asset.balance + \
-                Decimal(str(amount_change))
-            self.asset.save()
+    def _update_asset_balance(self, amount_change, asset=None):
+        asset_to_update = asset or self.asset
+        if asset_to_update:
+            asset_to_update = Asset.objects.select_for_update().get(pk=asset_to_update.pk)
+            asset_to_update.balance += Decimal(str(amount_change))
+            asset_to_update.save()
 
 
 class Transfer(models.Model):
