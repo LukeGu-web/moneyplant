@@ -189,7 +189,8 @@ REST_FRAMEWORK = {
     'DEFAULT_THROTTLE_RATES': {
         'anon': '5/minute',
         'user': '20/minute'
-    }
+    },
+    'DATETIME_FORMAT': '%Y-%m-%dT%H:%M:%S.%fZ',
 }
 
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
