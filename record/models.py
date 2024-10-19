@@ -1,5 +1,4 @@
 from django.db import models, transaction
-from django.contrib.auth.models import User
 from django.utils import timezone
 from decimal import Decimal
 from book.models import Book
@@ -30,7 +29,8 @@ class Record(models.Model):
         with transaction.atomic():
             # Ensure date is timezone-aware
             if self.date and timezone.is_naive(self.date):
-                self.date = timezone.make_aware(self.date)
+                self.date = timezone.make_aware(
+                    self.date, timezone.get_current_timezone())
 
             if self.type == 'expense' and self.amount > 0:
                 self.amount = -self.amount  # Ensure amount is negative for expense
@@ -87,7 +87,8 @@ class Transfer(models.Model):
         with transaction.atomic():
             # Ensure date is timezone-aware
             if self.date and timezone.is_naive(self.date):
-                self.date = timezone.make_aware(self.date)
+                self.date = timezone.make_aware(
+                    self.date, timezone.get_current_timezone())
             if not self.pk:  # If the transfer is being created
                 self._update_asset_balances(self.amount)
             else:  # If the transfer is being updated

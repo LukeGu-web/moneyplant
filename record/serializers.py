@@ -1,6 +1,6 @@
 from rest_framework import serializers
+from django.utils import timezone
 from .models import Record, Transfer
-from decimal import Decimal
 
 
 class RecordSerializer(serializers.ModelSerializer):
@@ -9,12 +9,24 @@ class RecordSerializer(serializers.ModelSerializer):
         fields = ['id', 'type', 'category', 'subcategory',
                   'is_marked_tax_return', 'note', 'amount', 'date', 'book', 'asset']
 
+    def validate_date(self, value):
+        # Ensure the date is timezone-aware
+        if timezone.is_naive(value):
+            value = timezone.make_aware(value, timezone.get_current_timezone())
+        return value
+
 
 class TransferSerializer(serializers.ModelSerializer):
     class Meta:
         model = Transfer
         fields = ['id', 'type', 'note', 'amount',
                   'date', 'book', 'from_asset', 'to_asset']
+
+    def validate_date(self, value):
+        # Ensure the date is timezone-aware
+        if timezone.is_naive(value):
+            value = timezone.make_aware(value, timezone.get_current_timezone())
+        return value
 
 
 class CombinedRecordSerializer(serializers.Serializer):
