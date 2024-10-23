@@ -19,7 +19,7 @@ import base64
 def google_auth(request):
     try:
         # Get the ID token from the request
-        id_token_str = request.data.get('idToken')
+        id_token_str = request.data.get('accessToken')
         # Optional: if you're sending this from frontend
         account_id = request.data.get('account_id')
 
