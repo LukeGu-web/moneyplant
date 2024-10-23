@@ -1,26 +1,19 @@
-from django.core.mail import BadHeaderError
+
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate
 from django.contrib.sites.shortcuts import get_current_site
-from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
+from django.utils.http import urlsafe_base64_encode
 from django.urls import reverse
 from django.utils.encoding import force_bytes
-from django.shortcuts import redirect
-
 from rest_framework.authtoken.models import Token
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework import status, generics
-
-from .serializers import AccountSerializer
-from .models import Account
-from .permissions import IsOwner
-from .utils import Util, EmailVerificationTokenGenerator
-# from rest_framework_simplejwt.tokens import RefreshToken
-
-email_verification_token = EmailVerificationTokenGenerator()
+from user.serializers import AccountSerializer
+from user.models import Account
+from user.permissions import IsOwner
+from user.utils import Util
 
 
 class AccountDetail(generics.RetrieveUpdateDestroyAPIView):
@@ -81,106 +74,6 @@ class AccountDetail(generics.RetrieveUpdateDestroyAPIView):
         return Response(serializer.data)
 
 
-class VerifyEmail(APIView):
-    def get(self, request, uidb64, token):
-        try:
-            uid = urlsafe_base64_decode(uidb64).decode()
-            user = User.objects.get(pk=uid)
-        except (TypeError, ValueError, OverflowError, User.DoesNotExist):
-            user = None
-
-        if user is not None and email_verification_token.check_token(user, token):
-            # Email verified successfully, update account_status
-            account = Account.objects.get(user=user)
-            account.account_status = "verified"
-            account.save()
-            # Send push notification if expo_push_token is available
-            if account.expo_push_token:
-                Util.send_push_message(
-                    token=account.expo_push_token,
-                    message="Your email has been successfully verified!",
-                    extra={"type": "EMAIL_VERIFIED"}
-                )
-
-            return redirect("https://getrich.lukegu.com/verification/")
-        else:
-            return redirect("https://getrich.lukegu.com/verification/failure/")
-
-
-@api_view(["POST"])
-def send_verification_email(request):
-    if request.method == "POST":
-        try:
-            user = Token.objects.get(key=request.auth.key).user
-            token = email_verification_token.make_token(user)
-            uid = urlsafe_base64_encode(force_bytes(user.pk))
-            current_site = get_current_site(request)
-            verification_link = reverse('verify_email', kwargs={
-                                        'uidb64': uid, 'token': token})
-            verification_url = f"http://{
-                current_site.domain}{verification_link}"
-            print(f"email: {user.email}")
-            print(f"verification_url: {verification_url}")
-            Util.send_email({
-                "email_subject": 'Verify your email address',
-                "email_body": f'Click the link to verify your email: {verification_url}',
-                "to_email": user.email,
-            })
-        except BadHeaderError:
-            return Response({"error": "Invalid header found."}, status=status.HTTP_400_BAD_REQUEST)
-        return Response({"details": "Send successfully."}, status=status.HTTP_200_OK)
-
-
-@api_view(['POST'])
-@permission_classes([IsAuthenticated])
-def register_push_token(request):
-    token = request.data.get('token')
-    if not token:
-        return Response({'error': 'Expo push token is required'}, status=status.HTTP_400_BAD_REQUEST)
-
-    account, created = Account.objects.get_or_create(user=request.user)
-    account.expo_push_token = token
-    account.save()
-
-    return Response({'details': 'Expo push token registered successfully'}, status=status.HTTP_200_OK)
-
-
-@api_view(http_method_names=["POST"])
-def tax_return_view(request):
-    if request.method == "POST":
-        try:
-            Util.send_email({
-                "email_subject": 'With attachment',
-                "email_body": 'Hello world',
-                "to_email": 'mythnan@gmail.com',
-                'email_attachment': 'doc/new.pdf'
-            })
-        except BadHeaderError:
-            return Response({"error": "Invalid header found."}, status=status.HTTP_400_BAD_REQUEST)
-        return Response({"details": "Send successfully."}, status=status.HTTP_200_OK)
-
-    if request.method == "POST":
-        try:
-            Util.send_email({
-                "email_subject": 'No attachment',
-                "email_body": 'Hello world',
-                "to_email": 'mythnan@gmail.com',
-            })
-        except BadHeaderError:
-            return Response({"error": "Invalid header found."}, status=status.HTTP_400_BAD_REQUEST)
-        return Response({"details": "Send successfully."}, status=status.HTTP_200_OK)
-
-
-@api_view(http_method_names=["POST"])
-def fill_pdf_view(request):
-    if request.method == "POST":
-        try:
-            Util.fill_pdf()
-        except BadHeaderError:
-            return Response({"error": "Invalid file."}, status=status.HTTP_400_BAD_REQUEST)
-        return Response({"details": "Send successfully."}, status=status.HTTP_200_OK)
-
-
 @api_view(http_method_names=["POST"])
 def device_register_view(request):
     if request.method == "POST":
@@ -218,6 +111,20 @@ def device_register_view(request):
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def register_push_token(request):
+    token = request.data.get('token')
+    if not token:
+        return Response({'error': 'Expo push token is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+    account, created = Account.objects.get_or_create(user=request.user)
+    account.expo_push_token = token
+    account.save()
+
+    return Response({'details': 'Expo push token registered successfully'}, status=status.HTTP_200_OK)
+
+
 @api_view(http_method_names=["GET"])
 def user_details_view(request):
     if request.method == "GET":
@@ -228,7 +135,6 @@ def user_details_view(request):
             return Response(serializer.data, status=status.HTTP_200_OK)
         except Token.DoesNotExist:
             return Response({"error": "User not found."}, status=status.HTTP_404_NOT_FOUND)
-
 
 # @api_view(["POST"])
 # def logout_user(request):

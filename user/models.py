@@ -23,3 +23,6 @@ class Account(models.Model):
     avatar = models.BinaryField(null=True, blank=True)
     nickname = models.CharField(
         max_length=100, null=True, blank=True, default="anonymous")
+    # social auth fields
+    auth_provider = models.CharField(max_length=20, blank=True, null=True)
+    social_id = models.CharField(max_length=255, blank=True, null=True)
