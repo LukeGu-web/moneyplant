@@ -13,6 +13,7 @@ urlpatterns = [
     path('details/', views.user_details_view),
     path('<int:pk>/', views.AccountDetail.as_view()),
     path("login/", obtain_auth_token, name="login"),
+    path('auth/facebook/', views.facebook_auth, name='facebook_auth'),
     path('auth/google/', views.google_auth, name='google_auth'),
     path("device-register/", views.device_register_view, name="device_register"),
     path("send-verify-email/", views.send_verification_email,
