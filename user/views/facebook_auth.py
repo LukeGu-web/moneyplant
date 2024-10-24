@@ -3,7 +3,6 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.authtoken.models import Token
-from django.conf import settings
 from django.contrib.auth.models import User
 from user.models import Account
 from user.utils import Util
@@ -18,7 +17,7 @@ import base64
 def facebook_auth(request):
     try:
         access_token = request.data.get('accessToken')
-        account_id = request.data.get('account_id')  # Optional
+        account_id = request.data.get('account_id')
 
         # Verify and get user data from Facebook
         graph_api_url = f"https://graph.facebook.com/v18.0/me"
@@ -45,29 +44,33 @@ def facebook_auth(request):
         if not email:
             email = f"{social_id}@facebook.com"
 
-        # Check if user exists
-        user = User.objects.filter(email=email).first()
-        is_first_time = False
+        # Check if a user exists with the same email but different provider
+        user_with_same_email = User.objects.filter(email=email).first()
+        if user_with_same_email:
+            account = Account.objects.filter(user=user_with_same_email).first()
+            if account and account.auth_provider != 'facebook':
+                return Response({
+                    'error': f'This email has already been registered with {account.auth_provider}.'
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+        # Check if the user exists with the same account_id
+        user = User.objects.filter(
+            username=account_id).first() if account_id else None
         book_data = None
 
         if not user:
-            # First-time user flow
-            is_first_time = True
+            # First time login - Create new user
+            if not account_id:
+                account_id = f"ACC{uuid.uuid4().hex[:10].upper()}"
 
-            # Create new user
-            username = email
             user = User.objects.create(
-                username=username,
+                username=account_id,
                 email=email,
                 first_name=fb_data.get('first_name', ''),
                 last_name=fb_data.get('last_name', '')
             )
 
-            # Generate account_id if not provided
-            if not account_id:
-                account_id = f"ACC{uuid.uuid4().hex[:10].upper()}"
-
-            # Create Account
+            # Create a new Account associated with Facebook
             account = Account.objects.create(
                 user=user,
                 account_id=account_id,
@@ -77,48 +80,55 @@ def facebook_auth(request):
                 social_id=social_id
             )
 
-            # Download and save profile picture if available
-            if picture_url:
-                response = requests.get(picture_url)
-                if response.status_code == 200:
-                    account.avatar = response.content
-                    account.save()
-
             # Create default book and groups for first-time users
             book, groups = Util.create_default_book_with_groups(user)
-
-            # Serialize book data for response
             book_serializer = BookSerializer(book)
             book_data = book_serializer.data
 
         else:
-            # Returning user flow
+            # User exists with this account_id
             account = Account.objects.filter(user=user).first()
 
             if not account:
-                # Edge case: User exists but no account (shouldn't normally happen)
+                # User exists but no account - Create new account
                 account = Account.objects.create(
                     user=user,
-                    account_id=account_id or f"ACC{
-                        uuid.uuid4().hex[:10].upper()}",
+                    account_id=account_id,
                     nickname=name,
                     account_status='verified',
                     auth_provider='facebook',
                     social_id=social_id
                 )
+            elif account.auth_provider != 'facebook':
+                # User exists with different auth provider
+                return Response({
+                    'error': f'This account is already registered with {account.auth_provider}.'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            elif account.social_id != social_id:
+                # Different Facebook account trying to use same account_id
+                return Response({
+                    'error': 'This account is already linked to a different Facebook account.'
+                }, status=status.HTTP_400_BAD_REQUEST)
             else:
-                # Update existing account
-                account.nickname = name
-                account.auth_provider = 'facebook'
-                account.social_id = social_id
-                account.account_status = 'verified'
+                # Update existing Facebook account information
+                user.first_name = fb_data.get('first_name', '')
+                user.last_name = fb_data.get('last_name', '')
+                user.save()
 
-                # Update profile picture
-                if picture_url:
-                    response = requests.get(picture_url)
-                    if response.status_code == 200:
-                        account.avatar = response.content
+                account.nickname = name
+                account.account_status = 'verified'
                 account.save()
+
+        # Update profile picture if available
+        if picture_url:
+            try:
+                response = requests.get(picture_url)
+                if response.status_code == 200:
+                    account.avatar = response.content
+                    account.save()
+            except Exception as e:
+                # Log the error but don't fail the authentication
+                print(f"Failed to update profile picture: {str(e)}")
 
         # Get or create token
         token, _ = Token.objects.get_or_create(user=user)
@@ -132,15 +142,17 @@ def facebook_auth(request):
             'email': user.email,
             'date_joined': user.date_joined,
             'token': token.key,
-            'is_first_time': is_first_time
         }
 
-        # Include book data for first-time users
         if book_data:
             response_data['book'] = book_data
 
         return Response(response_data)
 
+    except ValueError:
+        return Response({
+            'error': 'Invalid token'
+        }, status=status.HTTP_400_BAD_REQUEST)
     except Exception as e:
         return Response({
             'error': str(e)
