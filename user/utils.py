@@ -6,6 +6,8 @@ import six
 from fillpdf import fillpdfs
 from exponent_server_sdk import DeviceNotRegisteredError, PushClient, PushMessage, PushServerError, PushTicketError
 from requests.exceptions import ConnectionError, HTTPError
+from book.models import Book
+from asset.models import AssetGroup
 
 
 class EmailThread(threading.Thread):
@@ -19,6 +21,31 @@ class EmailThread(threading.Thread):
 
 
 class Util:
+    """Helper function to create a default book with 3 groups for new users"""
+    def create_default_book_with_groups(user):
+        # Create default book
+        book_data = {
+            "name": "Daily Life",
+            "note": "Welcome to your first book!",
+        }
+
+        # Create book instance
+        book = Book.objects.create(user=user, **book_data)
+
+        # Create three default groups
+        default_groups = [
+            {"name": 'Saving'},
+            {"name": 'Credit'},
+            {"name": 'Investment'},
+        ]
+
+        groups = []
+        for group_data in default_groups:
+            group = AssetGroup.objects.create(book=book, **group_data)
+            groups.append(group)
+
+        return book, groups
+
     @staticmethod
     def send_email(data):
         email = EmailMessage(

@@ -5,6 +5,8 @@ from rest_framework import status
 from rest_framework.authtoken.models import Token
 from django.contrib.auth.models import User
 from user.models import Account
+from user.utils import Util
+from book.serializers import BookSerializer
 import jwt
 import requests
 import uuid
@@ -17,7 +19,6 @@ from jwt.algorithms import RSAAlgorithm
 def apple_auth(request):
     try:
         # Get the identity token from request
-        # We're using accessToken in the request
         identity_token = request.data.get('accessToken')
         account_id = request.data.get('account_id')
 
@@ -71,8 +72,13 @@ def apple_auth(request):
 
         # Check if user exists
         user = User.objects.filter(email=email).first()
+        is_first_time = False
+        book_data = None
 
         if not user:
+            # First-time user flow
+            is_first_time = True
+
             # Create new user
             username = email
             user = User.objects.create(
@@ -94,20 +100,29 @@ def apple_auth(request):
                 social_id=sub
             )
 
-        else:
-            # Get or create account for existing user
-            account, created = Account.objects.get_or_create(
-                user=user,
-                defaults={
-                    'account_id': account_id or f"ACC{uuid.uuid4().hex[:10].upper()}",
-                    'nickname': email.split('@')[0],
-                    'account_status': 'verified' if email_verified else 'pending',
-                    'auth_provider': 'apple',
-                    'social_id': sub
-                }
-            )
+            # Create default book and groups for first-time users
+            book, groups = Util.create_default_book_with_groups(user)
 
-            if not created:
+            # Serialize book data for response
+            book_serializer = BookSerializer(book)
+            book_data = book_serializer.data
+
+        else:
+            # Returning user flow
+            account = Account.objects.filter(user=user).first()
+
+            if not account:
+                # Edge case: User exists but no account (shouldn't normally happen)
+                account = Account.objects.create(
+                    user=user,
+                    account_id=account_id or f"ACC{
+                        uuid.uuid4().hex[:10].upper()}",
+                    nickname=email.split('@')[0],
+                    account_status='verified' if email_verified else 'pending',
+                    auth_provider='apple',
+                    social_id=sub
+                )
+            else:
                 account.auth_provider = 'apple'
                 account.social_id = sub
                 account.account_status = 'verified' if email_verified else 'pending'
@@ -116,16 +131,23 @@ def apple_auth(request):
         # Get or create token
         token, _ = Token.objects.get_or_create(user=user)
 
-        return Response({
+        response_data = {
             'id': account.id,
             'account_id': account.account_id,
-            'avatar': None,
+            'avatar': None,  # Apple doesn't provide avatar
             'nickname': account.nickname,
             'account_status': account.account_status,
             'email': user.email,
             'date_joined': user.date_joined,
-            'token': token.key
-        })
+            'token': token.key,
+            'is_first_time': is_first_time
+        }
+
+        # Include book data for first-time users
+        if book_data:
+            response_data['book'] = book_data
+
+        return Response(response_data)
 
     except Exception as e:
         return Response({
