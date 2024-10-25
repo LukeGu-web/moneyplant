@@ -124,7 +124,7 @@ def google_auth(request):
         response_data = {
             'id': account.id,
             'account_id': account.account_id,
-            'avatar': base64.b64encode(account.avatar).decode('utf-8') if account.avatar else None,
+            'avatar': account.avatar if account.avatar else None,
             'nickname': account.nickname,
             'account_status': account.account_status,
             'email': user.email,
