@@ -13,8 +13,9 @@ from rest_framework import status, generics
 from user.serializers import AccountSerializer
 from user.models import Account
 from user.permissions import IsOwner
-from user.utils import Util
+from user.utils import Util, EmailVerificationTokenGenerator
 
+email_verification_token = EmailVerificationTokenGenerator()
 
 class AccountDetail(generics.RetrieveUpdateDestroyAPIView):
     """
@@ -51,8 +52,7 @@ class AccountDetail(generics.RetrieveUpdateDestroyAPIView):
                 current_site = get_current_site(request)
                 verification_link = reverse('verify_email', kwargs={
                                             'uidb64': uid, 'token': token})
-                verification_url = f"http://{
-                    current_site.domain}{verification_link}"
+                verification_url = f"http://{current_site.domain}{verification_link}"
                 print(f"email: {instance.user.email}")
                 print(f"verification_url: {verification_url}")
                 Util.send_email({

@@ -49,8 +49,7 @@ class Account(models.Model):
                 # Delete the user last
                 user.delete()
 
-                logger.info(f"Successfully deleted account {
-                            self.id} and associated user {user.id}")
+                logger.info(f"Successfully deleted account {self.id} and associated user {user.id}")
 
         except Exception as e:
             logger.error(f"Error during account deletion: {str(e)}")

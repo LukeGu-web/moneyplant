@@ -110,7 +110,7 @@ def google_auth(request):
         # Update profile picture if available
         if picture_url:
             try:
-                response = http_requests.get(picture_url)
+                response = requests.get(picture_url)
                 if response.status_code == 200:
                     account.avatar = response.content
                     account.save()
@@ -121,10 +121,19 @@ def google_auth(request):
         # Get or create token
         token, _ = Token.objects.get_or_create(user=user)
 
+        # Properly handle the avatar encoding
+        avatar_data = None
+        if account.avatar:
+            try:
+                # Encode binary data directly to base64 without UTF-8 decoding
+                avatar_data = base64.b64encode(account.avatar).decode('ascii')
+            except Exception as e:
+                print(f"Failed to encode avatar: {str(e)}")
+
         response_data = {
             'id': account.id,
             'account_id': account.account_id,
-            'avatar': account.avatar if account.avatar else None,
+            'avatar': avatar_data,
             'nickname': account.nickname,
             'account_status': account.account_status,
             'email': user.email,
