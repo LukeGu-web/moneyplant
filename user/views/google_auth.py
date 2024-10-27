@@ -7,12 +7,16 @@ from google.oauth2 import id_token
 from google.auth.transport import requests
 from django.conf import settings
 from django.contrib.auth.models import User
+from django.db import transaction
 from user.models import Account
 from user.utils import Util
 from book.serializers import BookSerializer
-import uuid
 import requests as http_requests
 import base64
+import logging
+
+# Set up logging
+logger = logging.getLogger(__name__)
 
 
 @api_view(['POST'])
@@ -78,62 +82,86 @@ def google_auth(request):
             user = User.objects.filter(username=account_id).first()
 
             if not user:
-                # First time login - Create new user
-                user = User.objects.create(
-                    username=account_id,
-                    email=email,
-                    first_name=idinfo.get('given_name', ''),
-                    last_name=idinfo.get('family_name', '')
-                )
+                # First time login - Create new user with transaction
+                try:
+                    with transaction.atomic():
+                        # Create user
+                        user = User.objects.create(
+                            username=account_id,
+                            email=email,
+                            first_name=idinfo.get('given_name', ''),
+                            last_name=idinfo.get('family_name', '')
+                        )
 
-                # Create a new Account associated with Google
-                account = Account.objects.create(
-                    user=user,
-                    account_id=account_id,
-                    nickname=name,
-                    account_status='verified',
-                    auth_provider='google',
-                    social_id=social_id
-                )
+                        # Create account
+                        account = Account.objects.create(
+                            user=user,
+                            account_id=account_id,
+                            nickname=name,
+                            account_status='verified',
+                            auth_provider='google',
+                            social_id=social_id
+                        )
 
-                # Create default book and groups for first-time users
-                book, groups = Util.create_default_book_with_groups(user)
-                book_serializer = BookSerializer(book)
-                book_data = book_serializer.data
+                        # Create default book and groups
+                        try:
+                            book, groups = Util.create_default_book_with_groups(
+                                user)
+                            book_serializer = BookSerializer(book)
+                            book_data = book_serializer.data
+                        except Exception as e:
+                            logger.error(
+                                f"Failed to create default book and groups: {str(e)}")
+                            # This will trigger rollback of the entire transaction
+                            raise
+                except Exception as e:
+                    logger.error(
+                        f"Transaction failed during user creation: {str(e)}")
+                    return Response({
+                        'error': 'Failed to create user account and associated data'
+                    }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
             else:
                 # User exists with this account_id
-                account = Account.objects.filter(user=user).first()
+                try:
+                    with transaction.atomic():
+                        account = Account.objects.filter(user=user).first()
 
-                if not account:
-                    # User exists but no account - Create new account
-                    account = Account.objects.create(
-                        user=user,
-                        account_id=account_id,
-                        nickname=name,
-                        account_status='verified',
-                        auth_provider='google',
-                        social_id=social_id
-                    )
-                else:
-                    if account.auth_provider is None:
-                        # Update the account if auth_provider is None
-                        account.auth_provider = 'google'
-                        account.social_id = social_id
-                        account.nickname = name
-                        account.account_status = 'verified'
-                        account.save()
-                    elif account.auth_provider != 'google':
-                        return Response({
-                            'error': f'This account is already registered with {account.auth_provider or "another provider"}.'
-                        }, status=status.HTTP_400_BAD_REQUEST)
-                    else:
-                        # Update existing Google account information
-                        account.social_id = social_id
-                        account.nickname = name
-                        account.account_status = 'verified'
-                        account.save()
+                        if not account:
+                            # User exists but no account - Create new account
+                            account = Account.objects.create(
+                                user=user,
+                                account_id=account_id,
+                                nickname=name,
+                                account_status='verified',
+                                auth_provider='google',
+                                social_id=social_id
+                            )
+                        else:
+                            if account.auth_provider is None:
+                                # Update the account if auth_provider is None
+                                account.auth_provider = 'google'
+                                account.social_id = social_id
+                                account.nickname = name
+                                account.account_status = 'verified'
+                                account.save()
+                            elif account.auth_provider != 'google':
+                                return Response({
+                                    'error': f'This account is already registered with {account.auth_provider or "another provider"}.'
+                                }, status=status.HTTP_400_BAD_REQUEST)
+                            else:
+                                # Update existing Google account information
+                                account.social_id = social_id
+                                account.nickname = name
+                                account.account_status = 'verified'
+                                account.save()
+                except Exception as e:
+                    logger.error(
+                        f"Transaction failed during account update: {str(e)}")
+                    return Response({
+                        'error': 'Failed to update account information'
+                    }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-        # Update profile picture if available
+        # Update profile picture if available (outside transaction as it's not critical)
         if picture_url:
             try:
                 response = http_requests.get(picture_url)
@@ -146,7 +174,8 @@ def google_auth(request):
                     account.avatar = base64_image
                     account.save()
             except Exception as e:
-                print(f"Failed to update profile picture: {str(e)}")
+                logger.error(f"Failed to update profile picture: {str(e)}")
+                # Don't return error response as this is not critical
 
         # Get or create token
         token, _ = Token.objects.get_or_create(user=user)
@@ -174,7 +203,7 @@ def google_auth(request):
             'error': 'Invalid token'
         }, status=status.HTTP_400_BAD_REQUEST)
     except Exception as e:
-        print(f"Unexpected error in google_auth: {str(e)}")
+        logger.error(f"Unexpected error in google_auth: {str(e)}")
         return Response({
-            'error': str(e)
+            'error': 'An unexpected error occurred'
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
