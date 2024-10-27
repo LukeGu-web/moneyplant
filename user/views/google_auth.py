@@ -19,9 +19,17 @@ import base64
 @permission_classes([AllowAny])
 def google_auth(request):
     try:
+        # Initialize book_data at the beginning
+        book_data = None
+
         # Get the ID token and account_id from the request
         id_token_str = request.data.get('accessToken')
         account_id = request.data.get('account_id')
+
+        if not id_token_str or not account_id:
+            return Response({
+                'error': 'Missing required fields: accessToken or account_id'
+            }, status=status.HTTP_400_BAD_REQUEST)
 
         # Verify the ID token with Google
         idinfo = id_token.verify_oauth2_token(
@@ -36,49 +44,49 @@ def google_auth(request):
         social_id = idinfo['sub']
         picture_url = idinfo.get('picture')
 
-        # Check if a user exists with the same email but different provider
-        user_with_same_email = User.objects.filter(email=email).first()
-        if user_with_same_email:
-            account = Account.objects.filter(user=user_with_same_email).first()
-            if account and account.auth_provider != 'google':
-                return Response({
-                    'error': f'This email has already been registered with {account.auth_provider}.'
-                }, status=status.HTTP_400_BAD_REQUEST)
+        # First, check if a user exists with this Google social_id
+        existing_google_account = Account.objects.filter(
+            social_id=social_id,
+            auth_provider='google'
+        ).first()
 
-        # Check if the user exists with the same account_id
-        user = User.objects.filter(username=account_id).first()
-        book_data = None
+        if existing_google_account:
+            # User already exists with this Google account - login directly
+            user = existing_google_account.user
+            account = existing_google_account
+            # Update user information
+            user.first_name = idinfo.get('given_name', '')
+            user.last_name = idinfo.get('family_name', '')
+            user.save()
 
-        if not user:
-            # First time login - Create new user
-            user = User.objects.create(
-                username=account_id,
-                email=email,
-                first_name=idinfo.get('given_name', ''),
-                last_name=idinfo.get('family_name', '')
-            )
-
-            # Create a new Account associated with Google
-            account = Account.objects.create(
-                user=user,
-                account_id=account_id,
-                nickname=name,
-                account_status='verified',
-                auth_provider='google',
-                social_id=social_id
-            )
-
-            # Create default book and groups for first-time users
-            book, groups = Util.create_default_book_with_groups(user)
-            book_serializer = BookSerializer(book)
-            book_data = book_serializer.data
-
+            account.nickname = name
+            account.account_status = 'verified'
+            account.save()
         else:
-            # User exists with this account_id
-            account = Account.objects.filter(user=user).first()
+            # Check if a user exists with the same email but different provider
+            user_with_same_email = User.objects.filter(email=email).first()
+            if user_with_same_email:
+                account = Account.objects.filter(
+                    user=user_with_same_email).first()
+                if account:
+                    if account.auth_provider != 'google':
+                        return Response({
+                            'error': f'This email has already been registered with {account.auth_provider or "another provider"}.'
+                        }, status=status.HTTP_400_BAD_REQUEST)
 
-            if not account:
-                # User exists but no account - Create new account
+            # Check if the user exists with the provided account_id
+            user = User.objects.filter(username=account_id).first()
+
+            if not user:
+                # First time login - Create new user
+                user = User.objects.create(
+                    username=account_id,
+                    email=email,
+                    first_name=idinfo.get('given_name', ''),
+                    last_name=idinfo.get('family_name', '')
+                )
+
+                # Create a new Account associated with Google
                 account = Account.objects.create(
                     user=user,
                     account_id=account_id,
@@ -87,53 +95,67 @@ def google_auth(request):
                     auth_provider='google',
                     social_id=social_id
                 )
-            elif account.auth_provider != 'google':
-                # User exists with different auth provider
-                return Response({
-                    'error': f'This account is already registered with {account.auth_provider}.'
-                }, status=status.HTTP_400_BAD_REQUEST)
-            elif account.social_id != social_id:
-                # Different Google account trying to use same account_id
-                return Response({
-                    'error': 'This account is already linked to a different Google account.'
-                }, status=status.HTTP_400_BAD_REQUEST)
-            else:
-                # Update existing Google account information
-                user.first_name = idinfo.get('given_name', '')
-                user.last_name = idinfo.get('family_name', '')
-                user.save()
 
-                account.nickname = name
-                account.account_status = 'verified'
-                account.save()
+                # Create default book and groups for first-time users
+                book, groups = Util.create_default_book_with_groups(user)
+                book_serializer = BookSerializer(book)
+                book_data = book_serializer.data
+            else:
+                # User exists with this account_id
+                account = Account.objects.filter(user=user).first()
+
+                if not account:
+                    # User exists but no account - Create new account
+                    account = Account.objects.create(
+                        user=user,
+                        account_id=account_id,
+                        nickname=name,
+                        account_status='verified',
+                        auth_provider='google',
+                        social_id=social_id
+                    )
+                else:
+                    if account.auth_provider is None:
+                        # Update the account if auth_provider is None
+                        account.auth_provider = 'google'
+                        account.social_id = social_id
+                        account.nickname = name
+                        account.account_status = 'verified'
+                        account.save()
+                    elif account.auth_provider != 'google':
+                        return Response({
+                            'error': f'This account is already registered with {account.auth_provider or "another provider"}.'
+                        }, status=status.HTTP_400_BAD_REQUEST)
+                    else:
+                        # Update existing Google account information
+                        account.social_id = social_id
+                        account.nickname = name
+                        account.account_status = 'verified'
+                        account.save()
 
         # Update profile picture if available
         if picture_url:
             try:
-                response = requests.get(picture_url)
+                response = http_requests.get(picture_url)
                 if response.status_code == 200:
-                    account.avatar = response.content
+                    content_type = response.headers.get(
+                        'content-type', 'image/jpeg')
+                    image_base64 = base64.b64encode(
+                        response.content).decode('utf-8')
+                    base64_image = f"data:{content_type};base64,{image_base64}"
+                    account.avatar = base64_image
                     account.save()
             except Exception as e:
-                # Log the error but don't fail the authentication
                 print(f"Failed to update profile picture: {str(e)}")
 
         # Get or create token
         token, _ = Token.objects.get_or_create(user=user)
 
-        # Properly handle the avatar encoding
-        avatar_data = None
-        if account.avatar:
-            try:
-                # Encode binary data directly to base64 without UTF-8 decoding
-                avatar_data = base64.b64encode(account.avatar).decode('ascii')
-            except Exception as e:
-                print(f"Failed to encode avatar: {str(e)}")
-
+        # Prepare response data
         response_data = {
             'id': account.id,
             'account_id': account.account_id,
-            'avatar': avatar_data,
+            'avatar': account.avatar,
             'nickname': account.nickname,
             'account_status': account.account_status,
             'email': user.email,
@@ -141,7 +163,8 @@ def google_auth(request):
             'token': token.key,
         }
 
-        if book_data:
+        # Only add book_data if it exists
+        if book_data is not None:
             response_data['book'] = book_data
 
         return Response(response_data)
@@ -151,6 +174,7 @@ def google_auth(request):
             'error': 'Invalid token'
         }, status=status.HTTP_400_BAD_REQUEST)
     except Exception as e:
+        print(f"Unexpected error in google_auth: {str(e)}")
         return Response({
             'error': str(e)
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
