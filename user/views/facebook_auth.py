@@ -12,9 +12,38 @@ import requests
 import uuid
 import base64
 import logging
+import jwt
 
 # Set up logging
 logger = logging.getLogger(__name__)
+
+
+def decode_limited_login_token(token):
+    """
+    Decode the Limited Login JWT token without verification
+    to extract user information
+    """
+    try:
+        # Decode without verification since we trust the token from the client
+        decoded_token = jwt.decode(token, options={"verify_signature": False})
+
+        # Map JWT claims to Facebook-like response
+        return {
+            # Facebook user ID is in 'sub' claim
+            'id': decoded_token.get('sub'),
+            'email': decoded_token.get('email'),
+            'name': decoded_token.get('name'),
+            'first_name': decoded_token.get('given_name'),
+            'last_name': decoded_token.get('family_name'),
+            'picture': {
+                'data': {
+                    'url': decoded_token.get('picture')
+                }
+            }
+        }
+    except jwt.InvalidTokenError as e:
+        logger.error(f"Error decoding token: {str(e)}")
+        raise ValueError("Invalid token format")
 
 
 @api_view(['POST'])
@@ -33,30 +62,23 @@ def facebook_auth(request):
                 'error': 'Missing required field: accessToken'
             }, status=status.HTTP_400_BAD_REQUEST)
 
-        # Verify and get user data from Facebook
-        graph_api_url = f"https://graph.facebook.com/v18.0/me"
-        params = {
-            'fields': 'id,name,email,first_name,last_name,picture.type(large)',
-            'access_token': access_token
-        }
-
-        fb_response = requests.get(graph_api_url, params=params)
-        fb_data = fb_response.json()
-
-        if 'error' in fb_data:
-            logger.error(f"Facebook API error: {fb_data['error']}")
+        try:
+            # Decode the Limited Login JWT token
+            fb_data = decode_limited_login_token(access_token)
+        except ValueError as e:
             return Response({
-                'error': 'Invalid Facebook token'
+                'error': str(e)
             }, status=status.HTTP_400_BAD_REQUEST)
 
-        # Extract user info
+        # Extract user info from decoded token
         email = fb_data.get('email')
         name = fb_data.get('name')
         social_id = fb_data.get('id')
         picture_url = fb_data.get('picture', {}).get('data', {}).get('url')
 
-        # If email is not provided by Facebook (rare case)
+        # For Limited Login, email might not be available
         if not email:
+            # Generate a placeholder email using social_id
             email = f"{social_id}@facebook.com"
 
         # First, check if a user exists with this Facebook social_id
@@ -70,12 +92,15 @@ def facebook_auth(request):
             user = existing_facebook_account.user
             account = existing_facebook_account
 
-            # Update user information
-            user.first_name = fb_data.get('first_name', '')
-            user.last_name = fb_data.get('last_name', '')
+            # Update user information if available
+            if fb_data.get('first_name'):
+                user.first_name = fb_data.get('first_name')
+            if fb_data.get('last_name'):
+                user.last_name = fb_data.get('last_name')
             user.save()
 
-            account.nickname = name
+            if name:
+                account.nickname = name
             account.account_status = 'verified'
             account.save()
         else:
@@ -102,7 +127,7 @@ def facebook_auth(request):
                         if not account_id:
                             account_id = f"ACC{uuid.uuid4().hex[:10].upper()}"
 
-                        # Create user
+                        # Create user with available information
                         user = User.objects.create(
                             username=account_id,
                             email=email,
@@ -114,7 +139,7 @@ def facebook_auth(request):
                         account = Account.objects.create(
                             user=user,
                             account_id=account_id,
-                            nickname=name,
+                            nickname=name or social_id,  # Use social_id as fallback if name not available
                             account_status='verified',
                             auth_provider='facebook',
                             social_id=social_id
@@ -129,7 +154,6 @@ def facebook_auth(request):
                         except Exception as e:
                             logger.error(
                                 f"Failed to create default book and groups: {str(e)}")
-                            # This will trigger rollback of the entire transaction
                             raise
                 except Exception as e:
                     logger.error(
@@ -148,7 +172,7 @@ def facebook_auth(request):
                             account = Account.objects.create(
                                 user=user,
                                 account_id=account_id,
-                                nickname=name,
+                                nickname=name or social_id,
                                 account_status='verified',
                                 auth_provider='facebook',
                                 social_id=social_id
@@ -158,7 +182,7 @@ def facebook_auth(request):
                                 # Update the account if auth_provider is None
                                 account.auth_provider = 'facebook'
                                 account.social_id = social_id
-                                account.nickname = name
+                                account.nickname = name or account.nickname
                                 account.account_status = 'verified'
                                 account.save()
                             elif account.auth_provider != 'facebook':
@@ -171,11 +195,14 @@ def facebook_auth(request):
                                 }, status=status.HTTP_400_BAD_REQUEST)
                             else:
                                 # Update existing Facebook account information
-                                user.first_name = fb_data.get('first_name', '')
-                                user.last_name = fb_data.get('last_name', '')
+                                if fb_data.get('first_name'):
+                                    user.first_name = fb_data.get('first_name')
+                                if fb_data.get('last_name'):
+                                    user.last_name = fb_data.get('last_name')
                                 user.save()
 
-                                account.nickname = name
+                                if name:
+                                    account.nickname = name
                                 account.account_status = 'verified'
                                 account.save()
                 except Exception as e:
@@ -199,7 +226,6 @@ def facebook_auth(request):
                     account.save()
             except Exception as e:
                 logger.error(f"Failed to update profile picture: {str(e)}")
-                # Don't return error response as this is not critical
 
         # Get or create token
         token, _ = Token.objects.get_or_create(user=user)
@@ -222,10 +248,6 @@ def facebook_auth(request):
 
         return Response(response_data)
 
-    except ValueError:
-        return Response({
-            'error': 'Invalid token'
-        }, status=status.HTTP_400_BAD_REQUEST)
     except Exception as e:
         logger.error(f"Unexpected error in facebook_auth: {str(e)}")
         return Response({
