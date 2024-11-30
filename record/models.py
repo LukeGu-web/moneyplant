@@ -1,6 +1,8 @@
 from django.db import models, transaction
 from django.utils import timezone
 from decimal import Decimal
+from datetime import timedelta
+from dateutil.relativedelta import relativedelta
 from book.models import Book
 from asset.models import Asset
 
@@ -112,3 +114,37 @@ class Transfer(models.Model):
             self.to_asset = Asset.objects.select_for_update().get(pk=self.to_asset.pk)
             self.to_asset.balance += Decimal(str(amount_change))
             self.to_asset.save()
+
+
+class ScheduledRecord(Record):
+    FREQUENCY_CHOICES = [
+        ('daily', 'daily'),
+        ('weekly', 'weekly'),
+        ('monthly', 'monthly'),
+        ('annually', 'annually'),
+    ]
+
+    frequency = models.CharField(max_length=10, choices=FREQUENCY_CHOICES)
+    start_date = models.DateTimeField()  # Includes both date and time
+    next_occurrence = models.DateTimeField()
+
+    class Meta:
+        db_table = 'scheduled_record'
+
+    def save(self, *args, **kwargs):
+        if not self.pk:  # New scheduled record
+            self.next_occurrence = self._calculate_next_occurrence(
+                self.start_date)
+        super().save(*args, **kwargs)
+
+    def _calculate_next_occurrence(self, current_datetime):
+        """Calculate the next occurrence based on the frequency."""
+        if self.frequency == 'daily':
+            return current_datetime + timedelta(days=1)
+        elif self.frequency == 'weekly':
+            return current_datetime + timedelta(weeks=1)
+        elif self.frequency == 'monthly':
+            return current_datetime + relativedelta(months=1)
+        elif self.frequency == 'annually':
+            return current_datetime + relativedelta(years=1)
+        return current_datetime
