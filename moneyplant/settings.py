@@ -234,3 +234,10 @@ LOGGING = {
         },
     },
 }
+
+# Celery settings
+CELERY_BROKER_URL = 'redis://localhost:6379/0'  # Redis as the message broker
+CELERY_ACCEPT_CONTENT = ['json']  # Content formats
+CELERY_TASK_SERIALIZER = 'json'  # Task serialization format
+CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'  # Redis for task results
+CELERY_TIMEZONE = 'UTC'  # Set timezone for Celery
