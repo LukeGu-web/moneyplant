@@ -62,6 +62,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'moneyplant.middleware.timezone_middleware.TimezoneMiddleware',
 ]
 
 ROOT_URLCONF = 'moneyplant.urls'
