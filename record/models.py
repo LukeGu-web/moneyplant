@@ -3,10 +3,9 @@ from django.utils import timezone
 from decimal import Decimal
 from datetime import timedelta
 from dateutil.relativedelta import relativedelta
-from django_celery_beat.models import PeriodicTask
 from book.models import Book
 from asset.models import Asset
-from .tasks import create_or_update_periodic_task
+
 
 TYPE_CHOICES = (('income', 'income'), ('expense', 'expense'))
 
@@ -161,10 +160,12 @@ class ScheduledRecord(Record):
         super().save(*args, **kwargs)
 
         # Create or update the periodic task
+        from .tasks import create_or_update_periodic_task
         create_or_update_periodic_task(self)
 
     def delete(self, *args, **kwargs):
         # Clean up associated periodic task
+        from django_celery_beat.models import PeriodicTask
         PeriodicTask.objects.filter(name=f"process_record_{self.id}").delete()
         super().delete(*args, **kwargs)
 
