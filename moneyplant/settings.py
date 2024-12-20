@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'django_celery_beat',
+    'django_celery_results',
     'django_filters',
     'rest_framework',
     'rest_framework.authtoken',
@@ -89,30 +90,6 @@ WSGI_APPLICATION = 'moneyplant.wsgi.application'
 
 # Database
 # https://docs.djangoproject.com/en/5.0/ref/settings/#databases
-
-# default db
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'django.db.backends.sqlite3',
-#         'NAME': BASE_DIR / 'db.sqlite3',
-#     }
-# }
-
-# neon db
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'django.db.backends.postgresql',
-#         'NAME': os.environ.get('PGDATABASE'),
-#         'USER': os.environ.get('PGUSER'),
-#         'PASSWORD': os.environ.get('PGPASSWORD'),
-#         'HOST': os.environ.get('PGHOST'),
-#         'PORT': os.environ.get('PGPORT', 5432),
-#         'OPTIONS': {
-#             'sslmode': 'require',
-#         },
-#         'DISABLE_SERVER_SIDE_CURSORS': True,
-#     }
-# }
 
 # mac local postgreSQL db
 DATABASES = {
@@ -237,9 +214,21 @@ LOGGING = {
     },
 }
 
-# Celery settings
-CELERY_BROKER_URL = 'redis://localhost:6379/0'  # Redis as the message broker
-CELERY_ACCEPT_CONTENT = ['json']  # Content formats
-CELERY_TASK_SERIALIZER = 'json'  # Task serialization format
-CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'  # Redis for task results
-CELERY_TIMEZONE = 'UTC'  # Set timezone for Celery
+# Celery Configuration Settings
+CELERY_TIMEZONE = "UTC"
+CELERY_TASK_TRACK_STARTED = True
+CELERY_TASK_TIME_LIMIT = 30 * 60
+CELERY_RESULT_BACKEND = 'django-db'
+CELERY_BROKER_URL = 'redis://localhost:6379/0'
+CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
+# Additional Celery settings for better performance and monitoring
+CELERY_ACCEPT_CONTENT = ['application/json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+# Optional: Configure Celery Beat settings
+CELERY_BEAT_SCHEDULE = {
+    'check-due-records': {
+        'task': 'your_app.tasks.check_due_records',
+        'schedule': 60.0,  # Run every 60 seconds
+    },
+}

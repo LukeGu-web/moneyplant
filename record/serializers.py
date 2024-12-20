@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from django.utils import timezone
-from .models import Record, Transfer
+from .models import Record, Transfer, ScheduledRecord
 
 
 class RecordSerializer(serializers.ModelSerializer):
@@ -50,3 +50,34 @@ class MonthlyDataSerializer(serializers.Serializer):
     month = serializers.DateTimeField(format="%Y-%m")
     monthly_income = serializers.DecimalField(max_digits=12, decimal_places=2)
     monthly_expense = serializers.DecimalField(max_digits=12, decimal_places=2)
+
+
+class ScheduledRecordSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ScheduledRecord
+        fields = [
+            'id', 'frequency', 'start_date', 'end_date', 'status',
+            'next_occurrence', 'last_run', 'week_days', 'month_day'
+        ]
+        read_only_fields = ['next_occurrence', 'last_run']
+
+    def validate(self, data):
+        """
+        Custom validation for schedule-specific fields.
+        """
+        if data.get('frequency') == 'weekly' and not data.get('week_days'):
+            raise serializers.ValidationError(
+                {'week_days': 'Week days must be specified for weekly frequency'}
+            )
+
+        if data.get('frequency') == 'monthly' and not data.get('month_day'):
+            raise serializers.ValidationError(
+                {'month_day': 'Month day must be specified for monthly frequency'}
+            )
+
+        if 'end_date' in data and data['end_date'] and data['end_date'] < data['start_date']:
+            raise serializers.ValidationError(
+                {'end_date': 'End date must be after start date'}
+            )
+
+        return data

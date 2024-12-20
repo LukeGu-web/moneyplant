@@ -3,8 +3,10 @@ from django.utils import timezone
 from decimal import Decimal
 from datetime import timedelta
 from dateutil.relativedelta import relativedelta
+from django_celery_beat.models import PeriodicTask
 from book.models import Book
 from asset.models import Asset
+from .tasks import create_or_update_periodic_task
 
 TYPE_CHOICES = (('income', 'income'), ('expense', 'expense'))
 
@@ -118,33 +120,118 @@ class Transfer(models.Model):
 
 class ScheduledRecord(Record):
     FREQUENCY_CHOICES = [
-        ('daily', 'daily'),
-        ('weekly', 'weekly'),
-        ('monthly', 'monthly'),
-        ('annually', 'annually'),
+        ('daily', 'Daily'),
+        ('weekly', 'Weekly'),
+        ('monthly', 'Monthly'),
+        ('annually', 'Annually'),
+    ]
+
+    STATUS_CHOICES = [
+        ('active', 'Active'),
+        ('paused', 'Paused'),
+        ('completed', 'Completed'),
     ]
 
     frequency = models.CharField(max_length=10, choices=FREQUENCY_CHOICES)
-    start_date = models.DateTimeField()  # Includes both date and time
+    start_date = models.DateTimeField()
     next_occurrence = models.DateTimeField()
+    end_date = models.DateTimeField(null=True, blank=True)
+    status = models.CharField(
+        max_length=10, choices=STATUS_CHOICES, default='active')
+    last_run = models.DateTimeField(null=True, blank=True)
+    celery_task_id = models.CharField(max_length=255, null=True, blank=True)
+
+    # For weekly schedules
+    week_days = models.JSONField(
+        default=list, blank=True, help_text="List of weekdays (0-6) for weekly schedules")
+
+    # For monthly schedules
+    month_day = models.IntegerField(
+        null=True, blank=True, help_text="Day of month for monthly schedules")
 
     class Meta:
         db_table = 'scheduled_record'
 
     def save(self, *args, **kwargs):
-        if not self.pk:  # New scheduled record
+        is_new = not self.pk
+        if is_new:
             self.next_occurrence = self._calculate_next_occurrence(
                 self.start_date)
+
         super().save(*args, **kwargs)
+
+        # Create or update the periodic task
+        create_or_update_periodic_task(self)
+
+    def delete(self, *args, **kwargs):
+        # Clean up associated periodic task
+        PeriodicTask.objects.filter(name=f"process_record_{self.id}").delete()
+        super().delete(*args, **kwargs)
 
     def _calculate_next_occurrence(self, current_datetime):
         """Calculate the next occurrence based on the frequency."""
+        if not self.status == 'active':
+            return current_datetime
+
+        if self.end_date and current_datetime >= self.end_date:
+            self.status = 'completed'
+            return current_datetime
+
         if self.frequency == 'daily':
-            return current_datetime + timedelta(days=1)
+            next_date = current_datetime + timedelta(days=1)
+
         elif self.frequency == 'weekly':
-            return current_datetime + timedelta(weeks=1)
+            if self.week_days:
+                # Find the next allowed weekday
+                next_date = current_datetime + timedelta(days=1)
+                while next_date.weekday() not in self.week_days:
+                    next_date += timedelta(days=1)
+            else:
+                next_date = current_datetime + timedelta(weeks=1)
+
         elif self.frequency == 'monthly':
-            return current_datetime + relativedelta(months=1)
+            next_date = current_datetime + relativedelta(months=1)
+            if self.month_day:
+                # Adjust to specified day of month
+                next_date = next_date.replace(day=min(self.month_day,
+                                                      (next_date + relativedelta(months=1, days=-1)).day))
+
         elif self.frequency == 'annually':
-            return current_datetime + relativedelta(years=1)
-        return current_datetime
+            next_date = current_datetime + relativedelta(years=1)
+
+        else:
+            return current_datetime
+
+        # If next occurrence is past end_date, mark as completed
+        if self.end_date and next_date > self.end_date:
+            self.status = 'completed'
+            return current_datetime
+
+        return next_date
+
+    def update_next_occurrence(self):
+        """Update the next occurrence after a task has run."""
+        self.last_run = timezone.now()
+        self.next_occurrence = self._calculate_next_occurrence(
+            self.next_occurrence)
+        self.save()
+
+    def pause(self):
+        """Pause the scheduled record."""
+        self.status = 'paused'
+        self.save()
+
+    def resume(self):
+        """Resume the scheduled record."""
+        self.status = 'active'
+        self.next_occurrence = self._calculate_next_occurrence(timezone.now())
+        self.save()
+
+    @property
+    def is_due(self):
+        """Check if the task is due for execution."""
+        return (
+            self.status == 'active' and
+            self.next_occurrence <= timezone.now() and
+            (not self.end_date or self.next_occurrence <= self.end_date)
+        )
