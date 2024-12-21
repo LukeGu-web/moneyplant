@@ -1,12 +1,15 @@
 from rest_framework import generics, status, serializers
 from rest_framework.views import APIView
 from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
 from record.models import ScheduledRecord
 from record.serializers import ScheduledRecordSerializer
 from record.tasks import process_scheduled_record
 
 
 class ScheduledRecordList(generics.ListCreateAPIView):
+    permission_classes = [IsAuthenticated]
+
     queryset = ScheduledRecord.objects.all()
     serializer_class = ScheduledRecordSerializer
 
@@ -63,12 +66,18 @@ class ScheduledRecordDetail(generics.RetrieveUpdateDestroyAPIView):
     def perform_destroy(self, instance):
         # Clean up celery task before deleting
         from django_celery_beat.models import PeriodicTask
-        PeriodicTask.objects.filter(name=f"process_record_{
-                                    instance.id}").delete()
-        instance.delete()
+        PeriodicTask.objects.filter(name=f"process_record_{instance.id}").delete()
+        try:
+            instance.delete()
+        except Exception as e:
+            raise serializers.ValidationError({
+                "detail": f"Failed to delete scheduled record: {str(e)}"
+            })
 
 
 class ScheduledRecordPause(APIView):
+    permission_classes = [IsAuthenticated]
+
     def post(self, request, pk):
         try:
             record = ScheduledRecord.objects.get(pk=pk)
@@ -91,6 +100,8 @@ class ScheduledRecordPause(APIView):
 
 
 class ScheduledRecordResume(APIView):
+    permission_classes = [IsAuthenticated]
+
     def post(self, request, pk):
         try:
             record = ScheduledRecord.objects.get(pk=pk)
@@ -118,6 +129,8 @@ class ScheduledRecordResume(APIView):
 
 
 class ScheduledRecordExecute(APIView):
+    permission_classes = [IsAuthenticated]
+    
     def post(self, request, pk):
         try:
             record = ScheduledRecord.objects.get(pk=pk)
