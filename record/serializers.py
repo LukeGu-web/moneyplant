@@ -1,6 +1,8 @@
 from rest_framework import serializers
 from django.utils import timezone
 from .models import Record, Transfer, ScheduledRecord
+from book.models import Book
+from asset.models import Asset
 
 
 class RecordSerializer(serializers.ModelSerializer):
@@ -74,6 +76,16 @@ class MonthlyDataSerializer(serializers.Serializer):
 
 
 class ScheduledRecordSerializer(serializers.ModelSerializer):
+    book = serializers.PrimaryKeyRelatedField(
+        queryset=Book.objects.all(),
+        required=True
+    )
+    asset = serializers.PrimaryKeyRelatedField(
+        queryset=Asset.objects.all(),
+        required=False,
+        allow_null=True
+    )
+
     class Meta:
         model = ScheduledRecord
         fields = [

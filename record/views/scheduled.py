@@ -1,4 +1,4 @@
-from rest_framework import generics, status
+from rest_framework import generics, status, serializers
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from record.models import ScheduledRecord
@@ -34,10 +34,20 @@ class ScheduledRecordList(generics.ListCreateAPIView):
         return queryset
 
     def perform_create(self, serializer):
-        # Save and create celery task
-        instance = serializer.save()
-        from record.tasks import create_or_update_periodic_task
-        create_or_update_periodic_task(instance)
+        try:
+            instance = serializer.save()
+            from record.tasks import create_or_update_periodic_task
+            create_or_update_periodic_task(instance)
+        except Exception as e:
+            # Log the error with more detail
+            print(f"Error creating scheduled record:{str(e)}")  # For debugging
+            raise serializers.ValidationError({
+                "detail": f"Failed to create scheduled record: {str(e)}"
+            })
+
+    def create(self, request, *args, **kwargs):
+        print("Received data:", request.data)  # For debugging
+        return super().create(request, *args, **kwargs)
 
 
 class ScheduledRecordDetail(generics.RetrieveUpdateDestroyAPIView):

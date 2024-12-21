@@ -56,32 +56,76 @@ def check_due_records():
     return f"Checked {due_records.count()} due records"
 
 
+def create_crontab_schedule(record):
+    """
+    Create or retrieve a CrontabSchedule based on the ScheduledRecord's attributes.
+    """
+    from django_celery_beat.models import CrontabSchedule
+    if record.frequency == 'weekly':
+        if not record.week_days:
+            raise ValueError(
+                "Week days must be specified for weekly schedules.")
+        schedule, _ = CrontabSchedule.objects.get_or_create(
+            minute=0,
+            hour=0,
+            day_of_week=','.join(map(str, record.week_days)),
+            day_of_month='*',
+            month_of_year='*',
+        )
+    elif record.frequency == 'monthly':
+        if not record.month_day:
+            raise ValueError(
+                "Month day must be specified for monthly schedules.")
+        schedule, _ = CrontabSchedule.objects.get_or_create(
+            minute=0,
+            hour=0,
+            day_of_week='*',
+            day_of_month=str(record.month_day),
+            month_of_year='*',
+        )
+    else:
+        raise ValueError(f"Unsupported crontab frequency: {record.frequency}")
+    return schedule
+
+
 def create_or_update_periodic_task(record):
+    """
+    Create or update a periodic task for the given ScheduledRecord.
+    """
     from django_celery_beat.models import PeriodicTask
     task_name = f"process_record_{record.id}"
+
+    # Remove existing task with the same name
     PeriodicTask.objects.filter(name=task_name).delete()
 
+    # If the record is not active, do not create a new task
     if record.status != 'active':
         return
 
+    # Prepare task arguments
     task_kwargs = {
         'name': task_name,
         'task': 'your_app.tasks.process_scheduled_record',
         'args': json.dumps([record.id]),
         'start_time': record.start_date,
-        'enabled': True
+        'enabled': True,
     }
 
+    # Add schedule based on frequency
     if record.frequency in ['weekly', 'monthly']:
-        schedule = create_interval_schedule(record.frequency)
+        schedule = create_crontab_schedule(record)
         task_kwargs['crontab'] = schedule
-    else:
+    elif record.frequency in ['daily']:
         schedule = create_interval_schedule(record.frequency)
         task_kwargs['interval'] = schedule
+    else:
+        raise ValueError(f"Unsupported frequency: {record.frequency}")
 
+    # Set expiration if end_date exists
     if record.end_date:
         task_kwargs['expires'] = record.end_date
 
+    # Create the PeriodicTask
     PeriodicTask.objects.create(**task_kwargs)
 
 
