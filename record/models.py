@@ -150,6 +150,10 @@ class ScheduledRecord(Record):
 
     class Meta:
         db_table = 'scheduled_record'
+        indexes = [
+            models.Index(fields=['status', 'next_occurrence']),
+            models.Index(fields=['frequency']),
+        ]
 
     def save(self, *args, **kwargs):
         is_new = not self.pk
@@ -193,6 +197,8 @@ class ScheduledRecord(Record):
         elif self.frequency == 'monthly':
             next_date = current_datetime + relativedelta(months=1)
             if self.month_day:
+                if not 1 <= self.month_day <= 31:
+                    raise ValueError("month_day must be between 1 and 31")
                 # Adjust to specified day of month
                 next_date = next_date.replace(day=min(self.month_day,
                                                       (next_date + relativedelta(months=1, days=-1)).day))
@@ -227,6 +233,14 @@ class ScheduledRecord(Record):
         self.status = 'active'
         self.next_occurrence = self._calculate_next_occurrence(timezone.now())
         self.save()
+
+    def has_conflicts(self):
+        """Check for conflicting schedules."""
+        return ScheduledRecord.objects.filter(
+            book=self.book,
+            status='active',
+            next_occurrence=self.next_occurrence
+        ).exclude(pk=self.pk).exists()
 
     @property
     def is_due(self):

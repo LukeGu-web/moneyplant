@@ -15,6 +15,16 @@ class RecordSerializer(serializers.ModelSerializer):
             value = timezone.make_aware(value, timezone.get_current_timezone())
         return value
 
+    def validate_amount(self, value):
+        if value == 0:
+            raise serializers.ValidationError("Amount cannot be zero")
+        return value
+
+    def validate(self, data):
+        if data.get('type') == 'expense' and data.get('amount', 0) > 0:
+            data['amount'] = -abs(data['amount'])
+        return data
+
 
 class TransferSerializer(serializers.ModelSerializer):
     class Meta:
@@ -27,6 +37,17 @@ class TransferSerializer(serializers.ModelSerializer):
         if timezone.is_naive(value):
             value = timezone.make_aware(value, timezone.get_current_timezone())
         return value
+
+    def validate(self, data):
+        if data.get('from_asset') == data.get('to_asset'):
+            raise serializers.ValidationError(
+                "Transfer must be between different assets"
+            )
+        if data.get('amount', 0) <= 0:
+            raise serializers.ValidationError(
+                "Transfer amount must be positive"
+            )
+        return data
 
 
 class CombinedRecordSerializer(serializers.Serializer):
@@ -56,7 +77,11 @@ class ScheduledRecordSerializer(serializers.ModelSerializer):
     class Meta:
         model = ScheduledRecord
         fields = [
-            'id', 'frequency', 'start_date', 'end_date', 'status',
+            # Record fields
+            'id', 'book', 'asset', 'type', 'category', 'subcategory',
+            'is_marked_tax_return', 'note', 'amount', 'date',
+            # ScheduledRecord fields
+            'frequency', 'start_date', 'end_date', 'status',
             'next_occurrence', 'last_run', 'week_days', 'month_day'
         ]
         read_only_fields = ['next_occurrence', 'last_run']
@@ -81,3 +106,27 @@ class ScheduledRecordSerializer(serializers.ModelSerializer):
             )
 
         return data
+
+    def validate_week_days(self, value):
+        if value and not all(isinstance(day, int) and 0 <= day <= 6 for day in value):
+            raise serializers.ValidationError(
+                'Week days must be integers between 0 and 6'
+            )
+        return value
+
+    def validate_month_day(self, value):
+        if value and not (1 <= value <= 31):
+            raise serializers.ValidationError(
+                'Month day must be between 1 and 31'
+            )
+        return value
+
+    def validate_start_date(self, value):
+        if timezone.is_naive(value):
+            value = timezone.make_aware(value, timezone.get_current_timezone())
+        return value
+
+    def validate_end_date(self, value):
+        if value and timezone.is_naive(value):
+            value = timezone.make_aware(value, timezone.get_current_timezone())
+        return value
