@@ -195,13 +195,25 @@ class ScheduledRecord(Record):
                 next_date = current_datetime + timedelta(weeks=1)
 
         elif self.frequency == 'monthly':
-            next_date = current_datetime + relativedelta(months=1)
             if self.month_day:
                 if not 1 <= self.month_day <= 31:
                     raise ValueError("month_day must be between 1 and 31")
-                # Adjust to specified day of month
-                next_date = next_date.replace(day=min(self.month_day,
-                                                      (next_date + relativedelta(months=1, days=-1)).day))
+                
+                # Try to set the day in current month
+                current_month_target = current_datetime.replace(day=1)  # Go to first of month to avoid invalid dates
+                current_month_target = current_month_target.replace(day=min(self.month_day,
+                    (current_month_target + relativedelta(months=1, days=-1)).day))
+                
+                # If we haven't passed this day yet in current month, use it
+                if current_month_target > current_datetime:
+                    next_date = current_month_target
+                else:
+                    # Otherwise, go to next month
+                    next_date = (current_datetime + relativedelta(months=1)).replace(day=1)  # First go to 1st
+                    next_date = next_date.replace(day=min(self.month_day,
+                        (next_date + relativedelta(months=1, days=-1)).day))
+            else:
+                next_date = current_datetime + relativedelta(months=1)
 
         elif self.frequency == 'annually':
             next_date = current_datetime + relativedelta(years=1)

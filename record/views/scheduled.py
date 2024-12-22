@@ -59,9 +59,13 @@ class ScheduledRecordDetail(generics.RetrieveUpdateDestroyAPIView):
 
     def perform_update(self, serializer):
         # Update the record and recreate celery task
+        old_month_day = serializer.instance.month_day
         instance = serializer.save()
-        from record.tasks import create_or_update_periodic_task
-        create_or_update_periodic_task(instance)
+        if ('month_day' in serializer.validated_data and 
+            instance.frequency == 'monthly' and 
+            old_month_day != instance.month_day):
+            instance.next_occurrence = instance._calculate_next_occurrence(instance.next_occurrence)
+            instance.save(update_fields=['next_occurrence'])
 
     def perform_destroy(self, instance):
         # Clean up celery task before deleting
@@ -130,7 +134,7 @@ class ScheduledRecordResume(APIView):
 
 class ScheduledRecordExecute(APIView):
     permission_classes = [IsAuthenticated]
-    
+
     def post(self, request, pk):
         try:
             record = ScheduledRecord.objects.get(pk=pk)
