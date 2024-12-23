@@ -13,6 +13,17 @@ urlpatterns = [
     path('category/', views.CategoriedRecordView.as_view(), name='categoried-list'),
     path('monthly-data/', views.MonthlyDataView.as_view(), name='monthly-data'),
     path('trend/', views.RecordTrendView.as_view(), name='trend'),
+
+    # New scheduled record endpoints
+    path('scheduled/', views.ScheduledRecordList.as_view(), name='scheduled-list'),
+    path('scheduled/<int:pk>/', views.ScheduledRecordDetail.as_view(),
+         name='scheduled-detail'),
+    path('scheduled/<int:pk>/pause/',
+         views.ScheduledRecordPause.as_view(), name='scheduled-pause'),
+    path('scheduled/<int:pk>/resume/',
+         views.ScheduledRecordResume.as_view(), name='scheduled-resume'),
+    path('scheduled/<int:pk>/execute/',
+         views.ScheduledRecordExecute.as_view(), name='scheduled-execute'),
 ]
 
 urlpatterns = format_suffix_patterns(urlpatterns)

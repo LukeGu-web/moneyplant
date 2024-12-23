@@ -10,10 +10,14 @@ click==8.1.7
 click-didyoumean==0.3.1
 click-plugins==1.1.1
 click-repl==0.3.0
+cron-descriptor==1.4.5
 cryptography==43.0.3
 dj-database-url==2.2.0
 Django==5.1
+django-celery-beat==2.7.0
+django-celery-results==2.5.1
 django-filter==24.3
+django-timezone-field==7.0
 djangorestframework==3.15.2
 exponent_server_sdk==2.1.0
 fillpdf==0.7.3
@@ -35,6 +39,7 @@ pycparser==2.22
 PyJWT==2.9.0
 PyMuPDF==1.24.9
 PyMuPDFb==1.24.9
+python-crontab==3.2.0
 python-dateutil==2.9.0.post0
 python-dotenv==1.0.1
 pytz==2024.2
