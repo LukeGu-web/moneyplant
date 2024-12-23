@@ -181,6 +181,10 @@ EMAIL_USE_TLS = True
 EMAIL_USE_SSL = False
 
 
+# Push Notifications
+EXPO_PUSH_RETRY_COUNT = 3  # Number of retries for failed notifications
+
+
 # OAuth Login
 SOCIAL_AUTH_GOOGLE_CLIENT_ID = os.environ.get('GOOGLE_SIGNIN_IOS_CLIENT_ID')
 

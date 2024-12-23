@@ -5,18 +5,18 @@ from rest_framework.permissions import IsAuthenticated
 from record.models import ScheduledRecord
 from record.serializers import ScheduledRecordSerializer
 from record.tasks import process_scheduled_record
+from record.permissions import IsOwner
 
 
 class ScheduledRecordList(generics.ListCreateAPIView):
-    permission_classes = [IsAuthenticated]
-
-    queryset = ScheduledRecord.objects.all()
+    permission_classes = [IsAuthenticated, IsOwner]
     serializer_class = ScheduledRecordSerializer
 
     def get_queryset(self):
-        queryset = ScheduledRecord.objects.all().order_by('-created_at')
+        # Start with filtering by user
+        queryset = ScheduledRecord.objects.filter(book__user=self.request.user).order_by('-created_at')
 
-        # Filter parameters
+        # Apply additional filters
         status = self.request.query_params.get('status')
         frequency = self.request.query_params.get('frequency')
         book_id = self.request.query_params.get('book')
@@ -54,6 +54,7 @@ class ScheduledRecordList(generics.ListCreateAPIView):
 
 
 class ScheduledRecordDetail(generics.RetrieveUpdateDestroyAPIView):
+    permission_classes = [IsOwner]
     queryset = ScheduledRecord.objects.all()
     serializer_class = ScheduledRecordSerializer
 
@@ -80,7 +81,7 @@ class ScheduledRecordDetail(generics.RetrieveUpdateDestroyAPIView):
 
 
 class ScheduledRecordPause(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsOwner]
 
     def post(self, request, pk):
         try:
@@ -104,7 +105,7 @@ class ScheduledRecordPause(APIView):
 
 
 class ScheduledRecordResume(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsOwner]
 
     def post(self, request, pk):
         try:
@@ -131,9 +132,9 @@ class ScheduledRecordResume(APIView):
                 status=status.HTTP_404_NOT_FOUND
             )
 
-
+# API won't let you execute a scheduled task before its scheduled time
 class ScheduledRecordExecute(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsOwner]
 
     def post(self, request, pk):
         try:

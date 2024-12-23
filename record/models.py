@@ -142,7 +142,7 @@ class ScheduledRecord(Record):
 
     # For weekly schedules
     week_days = models.JSONField(
-        default=list, blank=True, help_text="List of weekdays (0-6) for weekly schedules")
+        default=list, blank=True, help_text="List of weekdays (0-6) for weekly schedules, where Monday is 0 and Sunday is 6")
 
     # For monthly schedules
     month_day = models.IntegerField(

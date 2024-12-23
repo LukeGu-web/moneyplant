@@ -1,40 +1,61 @@
 from celery import shared_task
 from django.utils import timezone
+from django.db import transaction
 import json
 from .models import Record, ScheduledRecord
-
+from .utils import send_push_message
 
 @shared_task
 def process_scheduled_record(record_id):
     try:
-        scheduled_record = ScheduledRecord.objects.get(id=record_id)
+        with transaction.atomic():
+            record = ScheduledRecord.objects.select_for_update().get(pk=record_id)
+            
+            # Create the new record
+            new_record = Record.objects.create(
+                book=record.book,
+                asset=record.asset,
+                type=record.type,
+                category=record.category,
+                subcategory=record.subcategory,
+                amount=record.amount,
+                note=record.note,
+                is_marked_tax_return=record.is_marked_tax_return,
+                date=record.next_occurrence
+            )
 
-        if not scheduled_record.is_due:
-            return f"Record {record_id} is not due yet or is inactive"
+            # Update the scheduled record
+            record.last_run = timezone.now()
+            record.next_occurrence = record._calculate_next_occurrence(record.next_occurrence)
+            record.save()
 
-        # Create a new record based on the scheduled record
-        new_record = Record.objects.create(
-            book=scheduled_record.book,
-            asset=scheduled_record.asset,
-            type=scheduled_record.type,
-            category=scheduled_record.category,
-            subcategory=scheduled_record.subcategory,
-            is_marked_tax_return=scheduled_record.is_marked_tax_return,
-            note=scheduled_record.note,
-            amount=scheduled_record.amount,
-            date=scheduled_record.next_occurrence
-        )
+            # Send push notification if token exists
+            try:
+                account = record.book.user.account
+                if account.expo_push_token:
+                    abs_amount = abs(float(record.amount))
+                    action = "costs" if record.type == "expense" else "earns"
+                    message = f'{record.frequency.capitalize()} record: {record.category} {action} ${abs_amount:.2f}'
+                    
+                    send_push_message(
+                        token=account.expo_push_token,
+                        message=message,
+                        extra={
+                            "type": "SCHEDULED_RECORD",
+                            "recordId": new_record.id,
+                            "bookId": record.book.id,
+                            "category": record.category,
+                            "amount": str(record.amount)
+                        }
+                    )
+            except Exception as e:
+                # Log the error but don't stop the process
+                print(f"Failed to send push notification: {str(e)}")
 
-        # Update the next occurrence
-        scheduled_record.update_next_occurrence()
-
-        return f"Successfully created record {new_record.id} from scheduled record {record_id}"
-
-    except ScheduledRecord.DoesNotExist:
-        return f"Record {record_id} not found"
+        return True
     except Exception as e:
-        return f"Error processing record {record_id}: {str(e)}"
-
+        print(f"Error processing scheduled record {record_id}: {str(e)}")
+        raise
 
 @shared_task
 def check_due_records():

@@ -1,6 +1,7 @@
 from itertools import groupby
 from decimal import Decimal
-
+from requests.exceptions import ConnectionError, HTTPError
+from exponent_server_sdk import DeviceNotRegisteredError, PushClient, PushMessage, PushServerError, PushTicketError
 
 def string_to_color(string):
     hash_value = 0
@@ -32,3 +33,29 @@ def group_records_by_date(records):
             'sum_of_expense': sum_of_expense
         })
     return grouped_data
+
+
+@staticmethod
+def send_push_message(token, message, extra=None):
+    """
+    Send push notification to a specific Expo push token
+    """
+    try:
+        response = PushClient().publish(
+            PushMessage(to=token,
+                        body=message,
+                        data=extra if extra else {}))
+    except PushServerError as exc:
+        # Encountered some likely formatting/validation error.
+        print(f"Push Server Error: {exc.errors} {exc.response_data}")
+    except (ConnectionError, HTTPError) as exc:
+        # Encountered some Connection or HTTP error - retry a few times in
+        # production
+        print(f"Connection Error: {exc}")
+    except DeviceNotRegisteredError:
+        # Mark the push token as inactive
+        # You might want to remove the token from your database
+        print(f"Device not registered: {token}")
+    except PushTicketError as exc:
+        # Encountered some other per-notification error.
+        print(f"Push Response Error: {exc}")
