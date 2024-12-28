@@ -1,4 +1,5 @@
 from django.db import models, transaction
+from django.core.validators import MinValueValidator, MaxValueValidator
 from django.utils import timezone
 from decimal import Decimal
 from datetime import timedelta
@@ -140,6 +141,16 @@ class ScheduledRecord(Record):
     last_run = models.DateTimeField(null=True, blank=True)
     celery_task_id = models.CharField(max_length=255, null=True, blank=True)
 
+    # For daily schedules
+    num_of_days = models.PositiveIntegerField(
+        default=1,
+        validators=[
+            MinValueValidator(1),
+            MaxValueValidator(365)
+        ],
+        help_text="Number of days between occurrences for daily schedules (1-365)"
+    )
+
     # For weekly schedules
     week_days = models.JSONField(
         default=list, blank=True, help_text="List of weekdays (0-6) for weekly schedules, where Monday is 0 and Sunday is 6")
@@ -183,7 +194,7 @@ class ScheduledRecord(Record):
             return current_datetime
 
         if self.frequency == 'daily':
-            next_date = current_datetime + timedelta(days=1)
+            next_date = current_datetime + timedelta(days=self.num_of_days)
 
         elif self.frequency == 'weekly':
             if self.week_days:

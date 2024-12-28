@@ -93,8 +93,8 @@ class ScheduledRecordSerializer(serializers.ModelSerializer):
             'id', 'book', 'asset', 'type', 'category', 'subcategory',
             'is_marked_tax_return', 'note', 'amount', 'date',
             # ScheduledRecord fields
-            'frequency', 'start_date', 'end_date', 'status',
-            'next_occurrence', 'last_run', 'week_days', 'month_day'
+            'frequency', 'start_date', 'end_date', 'status', 'next_occurrence',
+            'last_run', 'num_of_days', 'week_days', 'month_day'
         ]
         read_only_fields = ['next_occurrence', 'last_run']
 
@@ -102,6 +102,11 @@ class ScheduledRecordSerializer(serializers.ModelSerializer):
         """
         Custom validation for schedule-specific fields.
         """
+        if data.get('frequency') != 'daily' and data.get('num_of_days', 1) != 1:
+            raise serializers.ValidationError(
+                {'num_of_days': 'Number of days can only be set for daily frequency'}
+            )
+
         if data.get('frequency') == 'weekly' and not data.get('week_days'):
             raise serializers.ValidationError(
                 {'week_days': 'Week days must be specified for weekly frequency'}
@@ -118,6 +123,13 @@ class ScheduledRecordSerializer(serializers.ModelSerializer):
             )
 
         return data
+
+    def validate_num_of_days(self, value):
+        if not 1 <= value <= 365:
+            raise serializers.ValidationError(
+                'Number of days must be between 1 and 365'
+            )
+        return value
 
     def validate_week_days(self, value):
         if value and not all(isinstance(day, int) and 0 <= day <= 6 for day in value):

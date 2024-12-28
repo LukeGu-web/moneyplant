@@ -160,8 +160,11 @@ def create_interval_schedule(frequency, record=None):
     """
     from django_celery_beat.models import IntervalSchedule, CrontabSchedule
     if frequency == 'daily':
+        num_of_days = 1 
+        if record and hasattr(record, 'num_of_days'):
+            num_of_days = record.num_of_days
         return IntervalSchedule.objects.get_or_create(
-            every=1,
+            every=num_of_days,
             period=IntervalSchedule.DAYS,
         )[0]
     elif frequency == 'weekly' and record and record.week_days:
