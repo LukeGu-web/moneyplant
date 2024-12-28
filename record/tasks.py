@@ -11,7 +11,7 @@ def process_scheduled_record(record_id):
         with transaction.atomic():
             record = ScheduledRecord.objects.select_for_update().get(pk=record_id)
             
-            # Create the new record
+            # Create the new record with created_by_schedule field
             new_record = Record.objects.create(
                 book=record.book,
                 asset=record.asset,
@@ -21,15 +21,37 @@ def process_scheduled_record(record_id):
                 amount=record.amount,
                 note=record.note,
                 is_marked_tax_return=record.is_marked_tax_return,
-                date=record.next_occurrence
+                date=record.next_occurrence,
+                created_by_schedule=record  # Set the relationship to the scheduled record
             )
 
             # Update the scheduled record
             record.last_run = timezone.now()
             record.next_occurrence = record._calculate_next_occurrence(record.next_occurrence)
+            
+            # Check if the schedule is completed
+            if record.status == 'completed':
+                # Optionally send a notification about schedule completion
+                try:
+                    account = record.book.user.account
+                    if account.expo_push_token:
+                        message = f'Scheduled record series completed: {record.category}'
+                        send_push_message(
+                            token=account.expo_push_token,
+                            message=message,
+                            extra={
+                                "type": "SCHEDULE_COMPLETED",
+                                "scheduleId": record.id,
+                                "bookId": record.book.id,
+                                "category": record.category
+                            }
+                        )
+                except Exception as e:
+                    print(f"Failed to send completion notification: {str(e)}")
+            
             record.save()
 
-            # Send push notification if token exists
+            # Send push notification for the new record if token exists
             try:
                 account = record.book.user.account
                 if account.expo_push_token:
@@ -45,7 +67,8 @@ def process_scheduled_record(record_id):
                             "recordId": new_record.id,
                             "bookId": record.book.id,
                             "category": record.category,
-                            "amount": str(record.amount)
+                            "amount": str(record.amount),
+                            "scheduleId": record.id  # Added schedule ID for reference
                         }
                     )
             except Exception as e:
@@ -53,6 +76,9 @@ def process_scheduled_record(record_id):
                 print(f"Failed to send push notification: {str(e)}")
 
         return True
+    except ScheduledRecord.DoesNotExist:
+        print(f"Scheduled record {record_id} not found")
+        return False
     except Exception as e:
         print(f"Error processing scheduled record {record_id}: {str(e)}")
         raise

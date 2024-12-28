@@ -86,6 +86,9 @@ class ScheduledRecordSerializer(serializers.ModelSerializer):
         allow_null=True
     )
 
+    execution_count = serializers.IntegerField(read_only=True)
+    generated_records = RecordSerializer(many=True, read_only=True)
+
     class Meta:
         model = ScheduledRecord
         fields = [
@@ -94,9 +97,10 @@ class ScheduledRecordSerializer(serializers.ModelSerializer):
             'is_marked_tax_return', 'note', 'amount', 'date',
             # ScheduledRecord fields
             'frequency', 'start_date', 'end_date', 'status', 'next_occurrence',
-            'last_run', 'num_of_days', 'week_days', 'month_day'
+            'last_run', 'num_of_days', 'week_days', 'month_day',
+            'execution_count', 'generated_records'
         ]
-        read_only_fields = ['next_occurrence', 'last_run']
+        read_only_fields = ['next_occurrence', 'last_run', 'execution_count', 'generated_records']
 
     def validate(self, data):
         """

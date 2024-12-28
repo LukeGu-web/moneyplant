@@ -28,6 +28,13 @@ class Record(models.Model):
     date = models.DateTimeField(default=timezone.now)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    created_by_schedule = models.ForeignKey(
+        'ScheduledRecord',
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='generated_records'
+    )
 
     def save(self, *args, **kwargs):
         with transaction.atomic():
@@ -264,6 +271,10 @@ class ScheduledRecord(Record):
             status='active',
             next_occurrence=self.next_occurrence
         ).exclude(pk=self.pk).exists()
+    
+    @property
+    def execution_count(self):
+        return self.generated_records.count()
 
     @property
     def is_due(self):

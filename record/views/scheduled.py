@@ -2,7 +2,8 @@ from rest_framework import generics, status, serializers
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
-from record.models import ScheduledRecord
+from django.db.models import Count, Prefetch
+from record.models import ScheduledRecord, Record
 from record.serializers import ScheduledRecordSerializer
 from record.tasks import process_scheduled_record
 from record.permissions import IsOwner
@@ -13,8 +14,15 @@ class ScheduledRecordList(generics.ListCreateAPIView):
     serializer_class = ScheduledRecordSerializer
 
     def get_queryset(self):
-        # Start with filtering by user
-        queryset = ScheduledRecord.objects.filter(book__user=self.request.user).order_by('-created_at')
+        # Start with filtering by user and prefetch related data
+        queryset = ScheduledRecord.objects.filter(
+            book__user=self.request.user
+        ).prefetch_related(
+            Prefetch(
+                'generated_records',
+                queryset=Record.objects.order_by('-date')
+            )
+        ).order_by('-created_at')
 
         # Apply additional filters
         status = self.request.query_params.get('status')
@@ -42,7 +50,6 @@ class ScheduledRecordList(generics.ListCreateAPIView):
             from record.tasks import create_or_update_periodic_task
             create_or_update_periodic_task(instance)
         except Exception as e:
-            # Log the error with more detail
             print(f"Error creating scheduled record:{str(e)}")  # For debugging
             raise serializers.ValidationError({
                 "detail": f"Failed to create scheduled record: {str(e)}"
@@ -51,8 +58,8 @@ class ScheduledRecordList(generics.ListCreateAPIView):
     def create(self, request, *args, **kwargs):
         print("Received data:", request.data)  # For debugging
         return super().create(request, *args, **kwargs)
-
-
+    
+    
 class ScheduledRecordDetail(generics.RetrieveUpdateDestroyAPIView):
     permission_classes = [IsOwner]
     queryset = ScheduledRecord.objects.all()
