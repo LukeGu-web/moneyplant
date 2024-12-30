@@ -25,7 +25,9 @@ class CombinedListView(generics.ListAPIView):
         book_id = self.request.query_params.get('book_id')
         asset_ids = self.request.query_params.getlist('asset')
 
-        records = Record.objects.filter(book__user=user, book__id=book_id)
+        records = Record.objects.filter(book__user=user, book__id=book_id).exclude(
+            scheduledrecord__isnull=False
+        )
         transfers = Transfer.objects.filter(book__user=user, book__id=book_id)
 
         if asset_ids:

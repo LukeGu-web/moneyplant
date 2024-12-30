@@ -40,6 +40,8 @@ class CategoriedRecordView(generics.ListAPIView):
         if timeframe:
             filters &= self.build_timeframe_filter(timeframe)
 
+        # Add the exclusion of ScheduledRecord to the filters
+        filters &= Q(scheduledrecord__isnull=True)
         return Record.objects.filter(filters)
 
     def build_timeframe_filter(self, timeframe):

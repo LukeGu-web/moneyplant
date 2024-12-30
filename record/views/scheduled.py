@@ -13,15 +13,17 @@ class ScheduledRecordList(generics.ListCreateAPIView):
     permission_classes = [IsAuthenticated, IsOwner]
     serializer_class = ScheduledRecordSerializer
 
+    def get_serializer(self, *args, **kwargs):
+        serializer = super().get_serializer(*args, **kwargs)
+        # Remove generated_records from list view
+        if hasattr(serializer, 'fields'):
+            serializer.fields.pop('generated_records', None)
+        return serializer
+
     def get_queryset(self):
-        # Start with filtering by user and prefetch related data
+        # Start with filtering by user
         queryset = ScheduledRecord.objects.filter(
             book__user=self.request.user
-        ).prefetch_related(
-            Prefetch(
-                'generated_records',
-                queryset=Record.objects.order_by('-date')
-            )
         ).order_by('-created_at')
 
         # Apply additional filters
@@ -62,8 +64,15 @@ class ScheduledRecordList(generics.ListCreateAPIView):
     
 class ScheduledRecordDetail(generics.RetrieveUpdateDestroyAPIView):
     permission_classes = [IsOwner]
-    queryset = ScheduledRecord.objects.all()
     serializer_class = ScheduledRecordSerializer
+
+    def get_queryset(self):
+        return ScheduledRecord.objects.prefetch_related(
+            Prefetch(
+                'generated_records',
+                queryset=Record.objects.order_by('-date')
+            ).order_by('-created_at')
+        )
 
     def perform_update(self, serializer):
         # Update the record and recreate celery task

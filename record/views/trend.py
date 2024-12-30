@@ -12,7 +12,9 @@ from calendar import monthrange
 class RecordTrendView(generics.ListAPIView):
     def get_queryset(self):
         book_id = self.request.query_params.get('book_id')
-        queryset = Record.objects.all()
+        queryset = Record.objects.filter(
+            scheduledrecord__isnull=True
+        )
 
         if book_id:
             try:
