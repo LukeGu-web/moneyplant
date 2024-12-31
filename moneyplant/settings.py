@@ -13,6 +13,7 @@ https://docs.djangoproject.com/en/5.0/ref/settings/
 from pathlib import Path
 # import dj_database_url
 from dotenv import load_dotenv
+from datetime import timedelta
 import os
 import mimetypes
 
@@ -232,7 +233,11 @@ CELERY_RESULT_SERIALIZER = 'json'
 # Optional: Configure Celery Beat settings
 CELERY_BEAT_SCHEDULE = {
     'check-due-records': {
-        'task': 'your_app.tasks.check_due_records',
-        'schedule': 60.0,  # Run every 60 seconds
+        'task': 'record.tasks.check_due_records',
+        'schedule': timedelta(minutes=30),  # Run every 30 minutes
     },
+    'cleanup-expired-schedules': {
+        'task': 'record.tasks.cleanup_expired_schedules',
+        'schedule': timedelta(hours=24),  # Run once per day
+    }
 }

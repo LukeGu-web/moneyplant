@@ -89,6 +89,15 @@ class ScheduledRecordSerializer(serializers.ModelSerializer):
     execution_count = serializers.IntegerField(read_only=True)
     generated_records = RecordSerializer(many=True, read_only=True)
 
+    def to_representation(self, instance):
+        representation = super().to_representation(instance)
+        
+        # Check if we're in list view
+        if self.context.get('is_list_view', False):
+            representation.pop('generated_records', None)
+            
+        return representation
+
     class Meta:
         model = ScheduledRecord
         fields = [

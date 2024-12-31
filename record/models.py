@@ -181,9 +181,6 @@ class ScheduledRecord(Record):
 
         super().save(*args, **kwargs)
 
-        # Create or update the periodic task
-        from .tasks import create_or_update_periodic_task
-        create_or_update_periodic_task(self)
 
     def delete(self, *args, **kwargs):
         # Clean up associated periodic task
@@ -193,6 +190,9 @@ class ScheduledRecord(Record):
 
     def _calculate_next_occurrence(self, current_datetime):
         """Calculate the next occurrence based on the frequency."""
+        if current_datetime < timezone.now():
+            current_datetime = timezone.now()
+
         if not self.status == 'active':
             return current_datetime
 

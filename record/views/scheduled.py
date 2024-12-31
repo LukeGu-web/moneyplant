@@ -3,9 +3,9 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django.db.models import Count, Prefetch
+from django.db import transaction
 from record.models import ScheduledRecord, Record
 from record.serializers import ScheduledRecordSerializer
-from record.tasks import process_scheduled_record
 from record.permissions import IsOwner
 
 
@@ -13,15 +13,12 @@ class ScheduledRecordList(generics.ListCreateAPIView):
     permission_classes = [IsAuthenticated, IsOwner]
     serializer_class = ScheduledRecordSerializer
 
-    def get_serializer(self, *args, **kwargs):
-        serializer = super().get_serializer(*args, **kwargs)
-        # Remove generated_records from list view
-        if hasattr(serializer, 'fields'):
-            serializer.fields.pop('generated_records', None)
-        return serializer
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context['is_list_view'] = True
+        return context
 
     def get_queryset(self):
-        # Start with filtering by user
         queryset = ScheduledRecord.objects.filter(
             book__user=self.request.user
         ).order_by('-created_at')
@@ -45,21 +42,6 @@ class ScheduledRecordList(generics.ListCreateAPIView):
             queryset = queryset.filter(start_date__lte=start_date_before)
 
         return queryset
-
-    def perform_create(self, serializer):
-        try:
-            instance = serializer.save()
-            from record.tasks import create_or_update_periodic_task
-            create_or_update_periodic_task(instance)
-        except Exception as e:
-            print(f"Error creating scheduled record:{str(e)}")  # For debugging
-            raise serializers.ValidationError({
-                "detail": f"Failed to create scheduled record: {str(e)}"
-            })
-
-    def create(self, request, *args, **kwargs):
-        print("Received data:", request.data)  # For debugging
-        return super().create(request, *args, **kwargs)
     
     
 class ScheduledRecordDetail(generics.RetrieveUpdateDestroyAPIView):
@@ -153,28 +135,41 @@ class ScheduledRecordExecute(APIView):
     permission_classes = [IsAuthenticated, IsOwner]
 
     def post(self, request, pk):
+        from record.tasks import process_record_immediately
         try:
-            record = ScheduledRecord.objects.get(pk=pk)
-            if record.status != 'active':
-                return Response(
-                    {'error': f'Cannot execute schedule with status: {record.status}'},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
+            with transaction.atomic():
+                # Get record with select_for_update to prevent race conditions
+                record = ScheduledRecord.objects.select_for_update().get(pk=pk)
+                
+                # Check status
+                if record.status != 'active':
+                    return Response(
+                        {'error': f'Cannot execute schedule with status: {record.status}'},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
 
-            if not record.is_due:
-                return Response(
-                    {'error': 'Schedule is not due for execution'},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
+                # Check if due
+                if not record.is_due:
+                    return Response(
+                        {'error': 'Schedule is not due for execution'},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
 
-            task = process_scheduled_record.delay(record.id)
+                # Process the record immediately
+                try:
+                    process_record_immediately(record)
+                except Exception as e:
+                    return Response(
+                        {'error': f'Error processing record: {str(e)}'},
+                        status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                    )
 
-            return Response({
-                'status': 'success',
-                'message': f'Schedule {pk} execution triggered',
-                'task_id': task.id,
-                'next_occurrence': record.next_occurrence
-            })
+                return Response({
+                    'status': 'success',
+                    'message': f'Schedule {pk} executed successfully',
+                    'next_occurrence': record.next_occurrence
+                })
+
         except ScheduledRecord.DoesNotExist:
             return Response(
                 {'error': 'Schedule not found'},
