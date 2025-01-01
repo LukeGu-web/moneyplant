@@ -146,7 +146,6 @@ class ScheduledRecord(Record):
     status = models.CharField(
         max_length=10, choices=STATUS_CHOICES, default='active')
     last_run = models.DateTimeField(null=True, blank=True)
-    celery_task_id = models.CharField(max_length=255, null=True, blank=True)
 
     # For daily schedules
     num_of_days = models.PositiveIntegerField(
