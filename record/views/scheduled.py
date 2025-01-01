@@ -53,8 +53,8 @@ class ScheduledRecordDetail(generics.RetrieveUpdateDestroyAPIView):
             Prefetch(
                 'generated_records',
                 queryset=Record.objects.order_by('-date')
-            ).order_by('-created_at')
-        )
+            )
+        ).order_by('-created_at')
 
     def perform_update(self, serializer):
         # Update the record and recreate celery task
