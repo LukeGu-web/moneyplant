@@ -8,6 +8,7 @@ from record.models import Record
 from django.db.models import Q
 from datetime import datetime, timedelta
 import re
+import calendar
 
 colors = ("#519DE9", "#7CC674", "#73C5C5", "#8481DD", "#F6D173", "#EF9234", "#A30000", "#D2D2D2",
           "#0066CC", "#4CB140", "#009596", "#5752D1", "#F4C145", "#EC7A08", "#7D1007", "#B8BBBE",
@@ -46,25 +47,37 @@ class CategoriedRecordView(generics.ListAPIView):
 
     def build_timeframe_filter(self, timeframe):
         try:
-            if len(timeframe) == 4:  # YYYY
-                return Q(date__year=int(timeframe))
-            elif len(timeframe) == 7 and '-' in timeframe:  # YYYY-MM
+            # Year only: YYYY
+            if re.match(r'^\d{4}$', timeframe):
+                year = int(timeframe)
+                return Q(date__year=year)
+            
+            # Year-Month: YYYY-MM
+            elif re.match(r'^\d{4}-(?:0?[1-9]|1[0-2])$', timeframe):
                 year, month = map(int, timeframe.split('-'))
-                return Q(date__year=year, date__month=month)
-            elif len(timeframe) == 7 and '@' in timeframe:  # YYYY@WW
-                match = re.match(r'(\d{4})@(\d{2})', timeframe)
-                if not match:
-                    raise ValueError("Invalid YYYY@WW format")
-                year, week = map(int, match.groups())
-                start_date = datetime.strptime(
-                    f'{year}-W{week}-1', "%Y-W%W-%w").date()
+                _, last_day = calendar.monthrange(year, month)
+                start_date = datetime(year, month, 1).date()
+                end_date = datetime(year, month, last_day).date()
+                return Q(date__range=[start_date, end_date])
+            
+            # Year-Week: YYYY@WW
+            elif re.match(r'^\d{4}@(?:[1-9]|0[1-9]|[1-4]\d|5[0-3])$', timeframe):
+                year, week = map(int, timeframe.split('@'))
+                # Pad week number to ensure it has two digits
+                week_str = f"{week:02d}"
+                start_date = datetime.strptime(f'{year}-W{week_str}-1', "%Y-W%W-%w").date()
                 end_date = start_date + timedelta(days=6)
                 return Q(date__range=[start_date, end_date])
+            
             else:
-                raise ValueError
+                raise ValidationError({
+                    "detail": "Invalid timeframe format. Use YYYY (e.g., 2025), YYYY-MM (e.g., 2025-01 or 2025-1), or YYYY@WW (e.g., 2025@01 or 2025@1)"
+                })
+                
         except ValueError as e:
-            raise ValidationError(
-                {"detail": f"Invalid timeframe format. Use YYYY, YYYY-MM, or YYYY@WW. Error: {str(e)}"})
+            raise ValidationError({
+                "detail": f"Invalid timeframe value: {str(e)}. Use YYYY (e.g., 2025), YYYY-MM (e.g., 2025-01 or 2025-1), or YYYY@WW (e.g., 2025@01 or 2025@1)"
+            })
 
     def list(self, request, *args, **kwargs):
         queryset = self.get_queryset()
